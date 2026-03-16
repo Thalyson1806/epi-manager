@@ -75,6 +75,42 @@ public class EmployeesController : ControllerBase
         }
     }
 
+    // Endpoint usado pelo Biometric Bridge para buscar templates e fazer matching 1:N
+    [HttpGet("biometric-templates")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetBiometricTemplates(CancellationToken ct)
+        => Ok(await _service.GetBiometricTemplatesAsync(ct));
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Administrator")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            await _service.DeleteAsync(id, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
+    [HttpDelete("{id:guid}/biometric")]
+    [Authorize(Roles = "Administrator,HR")]
+    public async Task<IActionResult> ClearBiometric(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            await _service.ClearBiometricAsync(id, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
     [HttpPost("{id:guid}/activate")]
     [Authorize(Roles = "Administrator,HR")]
     public async Task<IActionResult> Activate(Guid id, CancellationToken ct)

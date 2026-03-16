@@ -154,14 +154,79 @@ export function useBiometric() {
   )
 
   // --------------------------------------------------------------------------
-  // captureVerification: captura 1 amostra para identificação
-  // Usado na tela de Entrega de EPI (identificação e assinatura)
-  // Retorna: sampleBase64 para enviar via POST /api/deliveries/identify
+  // captureVerification: captura 1 amostra para assinatura da ficha
+  // Usado no Passo 3 da Entrega de EPI (assinatura)
   // --------------------------------------------------------------------------
   const captureVerification = useCallback(
     (onProgress: (msg: string) => void) =>
       executeCommand('capture_verify', onProgress),
     [executeCommand],
+  )
+
+  // --------------------------------------------------------------------------
+  // captureIdentification: identificação 1:N via bridge
+  // Bridge busca templates do backend, usa libfprint identify, retorna employeeId
+  // Retorna: employeeId (string) do funcionário identificado
+  // Lança erro se não identificado
+  // --------------------------------------------------------------------------
+  const captureIdentification = useCallback(
+    (onProgress: (msg: string) => void): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        if (wsRef.current) wsRef.current.close()
+
+        const ws = new WebSocket(BRIDGE_URL)
+        wsRef.current = ws
+
+        const timeout = setTimeout(() => {
+          ws.close()
+          reject(new Error('Timeout: nenhuma resposta do leitor em 60 segundos'))
+        }, 60000)
+
+        ws.onopen = () => ws.send(JSON.stringify({ command: 'capture_identify' }))
+
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data)
+          switch (data.type) {
+            case 'progress':
+              onProgress(data.message)
+              break
+            case 'identify_complete':
+              clearTimeout(timeout)
+              ws.close()
+              resolve(data.employeeId)
+              break
+            case 'identify_failed':
+              clearTimeout(timeout)
+              ws.close()
+              reject(new Error(data.message))
+              break
+            case 'cancelled':
+              clearTimeout(timeout)
+              ws.close()
+              reject(new Error('Operação cancelada'))
+              break
+            case 'error':
+              clearTimeout(timeout)
+              ws.close()
+              reject(new Error(data.message))
+              break
+          }
+        }
+
+        ws.onerror = () => {
+          clearTimeout(timeout)
+          reject(new Error('Biometric Bridge não encontrado em localhost:7001.'))
+        }
+
+        ws.onclose = (event) => {
+          clearTimeout(timeout)
+          if (event.code !== 1000) {
+            reject(new Error('Conexão com o bridge foi encerrada inesperadamente'))
+          }
+        }
+      })
+    },
+    [],
   )
 
   // --------------------------------------------------------------------------
@@ -173,5 +238,5 @@ export function useBiometric() {
     }
   }, [])
 
-  return { checkStatus, captureEnrollment, captureVerification, cancel }
+  return { checkStatus, captureEnrollment, captureVerification, captureIdentification, cancel }
 }

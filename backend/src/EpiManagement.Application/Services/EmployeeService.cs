@@ -79,6 +79,23 @@ public class EmployeeService
         await _uow.SaveChangesAsync(ct);
     }
 
+    public async Task DeleteAsync(Guid id, CancellationToken ct = default)
+    {
+        var emp = await _uow.Employees.GetByIdAsync(id, ct)
+            ?? throw new KeyNotFoundException("Funcionário não encontrado.");
+        await _uow.Employees.DeleteAsync(emp, ct);
+        await _uow.SaveChangesAsync(ct);
+    }
+
+    public async Task ClearBiometricAsync(Guid id, CancellationToken ct = default)
+    {
+        var emp = await _uow.Employees.GetByIdAsync(id, ct)
+            ?? throw new KeyNotFoundException("Funcionário não encontrado.");
+        emp.SetBiometricTemplate(null);
+        await _uow.Employees.UpdateAsync(emp, ct);
+        await _uow.SaveChangesAsync(ct);
+    }
+
     public async Task DeactivateAsync(Guid id, CancellationToken ct = default)
     {
         var emp = await _uow.Employees.GetByIdAsync(id, ct)
@@ -86,6 +103,18 @@ public class EmployeeService
         emp.Deactivate();
         await _uow.Employees.UpdateAsync(emp, ct);
         await _uow.SaveChangesAsync(ct);
+    }
+
+    public async Task<IEnumerable<object>> GetBiometricTemplatesAsync(CancellationToken ct = default)
+    {
+        var employees = await _uow.Employees.GetAllAsync(ct);
+        return employees
+            .Where(e => e.BiometricTemplate != null)
+            .Select(e => (object)new
+            {
+                employeeId = e.Id,
+                templateBase64 = Convert.ToBase64String(e.BiometricTemplate!)
+            });
     }
 
     private static EmployeeDto Map(Employee e) => new(

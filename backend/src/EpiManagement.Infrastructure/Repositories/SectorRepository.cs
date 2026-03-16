@@ -32,4 +32,22 @@ public class SectorRepository : ISectorRepository
         var s = await _ctx.Sectors.FindAsync(new object[] { id }, ct);
         if (s is not null) _ctx.Sectors.Remove(s);
     }
+
+    public async Task<SectorEpi?> GetSectorEpiAsync(Guid sectorEpiId, CancellationToken ct = default)
+        => await _ctx.SectorEpis.Include(se => se.Epi).FirstOrDefaultAsync(se => se.Id == sectorEpiId, ct);
+
+    public async Task AddSectorEpiAsync(SectorEpi sectorEpi, CancellationToken ct = default)
+        => await _ctx.SectorEpis.AddAsync(sectorEpi, ct);
+
+    public Task UpdateSectorEpiAsync(SectorEpi sectorEpi, CancellationToken ct = default)
+    {
+        _ctx.SectorEpis.Update(sectorEpi);
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteSectorEpiAsync(SectorEpi sectorEpi, CancellationToken ct = default)
+    {
+        _ctx.SectorEpis.Remove(sectorEpi);
+        return Task.CompletedTask;
+    }
 }

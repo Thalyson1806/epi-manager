@@ -39,6 +39,12 @@ public class EmployeeRepository : IEmployeeRepository
         return Task.CompletedTask;
     }
 
+    public Task DeleteAsync(Employee employee, CancellationToken ct = default)
+    {
+        _ctx.Employees.Remove(employee);
+        return Task.CompletedTask;
+    }
+
     public async Task<bool> ExistsCpfAsync(string cpf, Guid? excludeId = null, CancellationToken ct = default)
         => await _ctx.Employees.AnyAsync(e => e.Cpf == cpf && (excludeId == null || e.Id != excludeId), ct);
 

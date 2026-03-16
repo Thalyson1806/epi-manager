@@ -9,6 +9,7 @@ import {
 import { Fingerprint, Add, Remove, CheckCircle, Send, WifiOff } from '@mui/icons-material'
 import { deliveriesApi, type BiometricIdentifyResult } from '../api/deliveries'
 import { episApi, type Epi } from '../api/epis'
+import { employeesApi } from '../api/employees'
 import { useBiometric } from '../hooks/useBiometric'
 
 const STEPS = ['Identificação Biométrica', 'Seleção de EPIs', 'Assinatura Biométrica', 'Confirmação']
@@ -72,21 +73,24 @@ export default function DeliveryPage() {
         return
       }
 
-      // Captura amostra via bridge WebSocket
-      // O usuário deve colocar o dedo no leitor
-      const sampleBase64 = await bio.captureVerification((msg) => setProgress(msg))
+      // Bridge faz matching 1:N internamente (libfprint identify) e retorna employeeId
+      const employeeId = await bio.captureIdentification((msg) => setProgress(msg))
 
-      // Envia amostra ao backend para identificação 1:N
-      setProgress('Identificando funcionário...')
-      const result = await deliveriesApi.identify(sampleBase64)
-
-      if (result.identified) {
-        setIdentifiedEmployee(result)
-        setActiveStep(1)
-        setProgress('')
-      } else {
-        setError('Funcionário não identificado. Verifique o cadastro biométrico ou tente novamente.')
+      // Busca detalhes do funcionário pelo ID retornado pelo bridge
+      setProgress('Carregando dados do funcionário...')
+      const emp = await employeesApi.getById(employeeId)
+      const result: BiometricIdentifyResult = {
+        identified: true,
+        employeeId: emp.id,
+        employeeName: emp.name,
+        registration: emp.registration,
+        sectorName: emp.sectorName,
+        position: emp.position,
+        photoUrl: emp.photoUrl,
       }
+      setIdentifiedEmployee(result)
+      setActiveStep(1)
+      setProgress('')
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro desconhecido'
       setError(message)

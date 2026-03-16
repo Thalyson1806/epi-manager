@@ -8,22 +8,22 @@ import {
   CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material'
 import {
-  Add, Search, Edit, PersonOff, PersonAdd, Fingerprint, Visibility,
+  Add, Search, Edit, PersonOff, PersonAdd, Fingerprint, Visibility, Delete,
 } from '@mui/icons-material'
 import { employeesApi } from '../api/employees'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
-const statusLabel: Record<number, { label: string; color: 'success' | 'error' }> = {
-  1: { label: 'Ativo', color: 'success' },
-  2: { label: 'Inativo', color: 'error' },
+const statusLabel: Record<string, { label: string; color: 'success' | 'error' }> = {
+  Active: { label: 'Ativo', color: 'success' },
+  Inactive: { label: 'Inativo', color: 'error' },
 }
 
 export default function EmployeesPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
-  const [confirmDialog, setConfirmDialog] = useState<{ id: string; action: 'activate' | 'deactivate'; name: string } | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<{ id: string; action: 'activate' | 'deactivate' | 'delete'; name: string } | null>(null)
 
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['employees'],
@@ -31,8 +31,11 @@ export default function EmployeesPage() {
   })
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, action }: { id: string; action: 'activate' | 'deactivate' }) =>
-      action === 'activate' ? employeesApi.activate(id) : employeesApi.deactivate(id),
+    mutationFn: ({ id, action }: { id: string; action: 'activate' | 'deactivate' | 'delete' }) => {
+      if (action === 'activate') return employeesApi.activate(id)
+      if (action === 'deactivate') return employeesApi.deactivate(id)
+      return employeesApi.delete(id)
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['employees'] })
       setConfirmDialog(null)
@@ -122,13 +125,22 @@ export default function EmployeesPage() {
                             <Edit fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title={emp.status === 1 ? 'Desativar' : 'Ativar'}>
+                        <Tooltip title={emp.status === 'Active' ? 'Desativar' : 'Ativar'}>
                           <IconButton
                             size="small"
-                            color={emp.status === 1 ? 'error' : 'success'}
-                            onClick={() => setConfirmDialog({ id: emp.id, action: emp.status === 1 ? 'deactivate' : 'activate', name: emp.name })}
+                            color={emp.status === 'Active' ? 'error' : 'success'}
+                            onClick={() => setConfirmDialog({ id: emp.id, action: emp.status === 'Active' ? 'deactivate' : 'activate', name: emp.name })}
                           >
-                            {emp.status === 1 ? <PersonOff fontSize="small" /> : <PersonAdd fontSize="small" />}
+                            {emp.status === 'Active' ? <PersonOff fontSize="small" /> : <PersonAdd fontSize="small" />}
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Excluir">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => setConfirmDialog({ id: emp.id, action: 'delete', name: emp.name })}
+                          >
+                            <Delete fontSize="small" />
                           </IconButton>
                         </Tooltip>
                       </TableCell>
@@ -150,23 +162,26 @@ export default function EmployeesPage() {
 
       <Dialog open={!!confirmDialog} onClose={() => setConfirmDialog(null)}>
         <DialogTitle>
-          {confirmDialog?.action === 'deactivate' ? 'Desativar Funcionário' : 'Ativar Funcionário'}
+          {confirmDialog?.action === 'delete' ? 'Excluir Funcionário' :
+           confirmDialog?.action === 'deactivate' ? 'Desativar Funcionário' : 'Ativar Funcionário'}
         </DialogTitle>
         <DialogContent>
           <Typography>
-            Deseja {confirmDialog?.action === 'deactivate' ? 'desativar' : 'ativar'} o funcionário{' '}
-            <strong>{confirmDialog?.name}</strong>?
+            {confirmDialog?.action === 'delete'
+              ? <>Deseja excluir permanentemente o funcionário <strong>{confirmDialog?.name}</strong>? Esta ação não pode ser desfeita.</>
+              : <>Deseja {confirmDialog?.action === 'deactivate' ? 'desativar' : 'ativar'} o funcionário <strong>{confirmDialog?.name}</strong>?</>
+            }
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmDialog(null)}>Cancelar</Button>
           <Button
             variant="contained"
-            color={confirmDialog?.action === 'deactivate' ? 'error' : 'success'}
+            color={confirmDialog?.action === 'activate' ? 'success' : 'error'}
             onClick={() => confirmDialog && toggleMutation.mutate({ id: confirmDialog.id, action: confirmDialog.action })}
             disabled={toggleMutation.isPending}
           >
-            Confirmar
+            {confirmDialog?.action === 'delete' ? 'Excluir' : 'Confirmar'}
           </Button>
         </DialogActions>
       </Dialog>

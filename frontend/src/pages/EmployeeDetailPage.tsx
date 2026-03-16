@@ -134,8 +134,8 @@ export default function EmployeeDetailPage() {
                 <Divider />
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                   <Chip
-                    label={emp?.status === 1 ? 'Ativo' : 'Inativo'}
-                    color={emp?.status === 1 ? 'success' : 'error'}
+                    label={emp?.status === 'Active' ? 'Ativo' : 'Inativo'}
+                    color={emp?.status === 'Active' ? 'success' : 'error'}
                     size="small"
                   />
                   <Chip

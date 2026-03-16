@@ -9,7 +9,7 @@ export interface Employee {
   sectorName: string
   position: string
   admissionDate: string
-  status: number
+  status: 'Active' | 'Inactive'
   hasBiometric: boolean
   photoUrl?: string
   createdAt: string
@@ -33,4 +33,6 @@ export const employeesApi = {
   deactivate: (id: string) => api.post(`/employees/${id}/deactivate`),
   setBiometric: (id: string, templateBase64: string) =>
     api.post(`/employees/${id}/biometric`, { employeeId: id, templateBase64 }),
+  delete: (id: string) => api.delete(`/employees/${id}`),
+  clearBiometric: (id: string) => api.delete(`/employees/${id}/biometric`),
 }

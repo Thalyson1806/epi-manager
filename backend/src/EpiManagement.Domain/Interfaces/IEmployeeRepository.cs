@@ -12,6 +12,7 @@ public interface IEmployeeRepository
     Task<IEnumerable<Employee>> GetWithBiometricTemplatesAsync(CancellationToken ct = default);
     Task AddAsync(Employee employee, CancellationToken ct = default);
     Task UpdateAsync(Employee employee, CancellationToken ct = default);
+    Task DeleteAsync(Employee employee, CancellationToken ct = default);
     Task<bool> ExistsCpfAsync(string cpf, Guid? excludeId = null, CancellationToken ct = default);
     Task<bool> ExistsRegistrationAsync(string registration, Guid? excludeId = null, CancellationToken ct = default);
 }

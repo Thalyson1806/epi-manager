@@ -18,3 +18,9 @@ public record CreateSectorEpiDto(
     int ReplacementPeriodDays,
     int MaxQuantityAllowed
 );
+
+public record UpdateSectorEpiDto(
+    bool IsRequired,
+    int ReplacementPeriodDays,
+    int MaxQuantityAllowed
+);

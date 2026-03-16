@@ -46,7 +46,7 @@ public class Employee
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void SetBiometricTemplate(byte[] template)
+    public void SetBiometricTemplate(byte[]? template)
     {
         BiometricTemplate = template;
         UpdatedAt = DateTime.UtcNow;

@@ -14,8 +14,8 @@ export default function ReportsPage() {
   const { data: epis = [] } = useQuery({ queryKey: ['epis'], queryFn: episApi.getAll })
   const { data: dashboard } = useQuery({ queryKey: ['dashboard'], queryFn: deliveriesApi.getDashboard })
 
-  const activeEmployees = employees.filter((e) => e.status === 1)
-  const inactiveEmployees = employees.filter((e) => e.status === 2)
+  const activeEmployees = employees.filter((e) => e.status === 'Active')
+  const inactiveEmployees = employees.filter((e) => e.status === 'Inactive')
 
   const sectorCounts = employees.reduce<Record<string, number>>((acc, e) => {
     acc[e.sectorName] = (acc[e.sectorName] ?? 0) + 1

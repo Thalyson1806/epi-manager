@@ -37,11 +37,7 @@ public class SectorsController : ControllerBase
     [Authorize(Roles = "Administrator,HR")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateSectorDto dto, CancellationToken ct)
     {
-        try
-        {
-            var s = await _service.UpdateAsync(id, dto, ct);
-            return Ok(s);
-        }
+        try { return Ok(await _service.UpdateAsync(id, dto, ct)); }
         catch (KeyNotFoundException) { return NotFound(); }
     }
 
@@ -51,5 +47,51 @@ public class SectorsController : ControllerBase
     {
         await _service.DeleteAsync(id, ct);
         return NoContent();
+    }
+
+    // ── EPIs do setor ────────────────────────────────────────────────────────
+
+    [HttpGet("{sectorId:guid}/epis")]
+    public async Task<IActionResult> GetEpis(Guid sectorId, CancellationToken ct)
+    {
+        try { return Ok(await _service.GetEpisAsync(sectorId, ct)); }
+        catch (KeyNotFoundException) { return NotFound(); }
+    }
+
+    [HttpPost("{sectorId:guid}/epis")]
+    [Authorize(Roles = "Administrator,HR")]
+    public async Task<IActionResult> AddEpi(Guid sectorId, [FromBody] CreateSectorEpiDto dto, CancellationToken ct)
+    {
+        try
+        {
+            var result = await _service.AddEpiAsync(sectorId, new CreateSectorEpiDto(
+                sectorId, dto.EpiId, dto.IsRequired, dto.ReplacementPeriodDays, dto.MaxQuantityAllowed), ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException e) { return NotFound(new { message = e.Message }); }
+        catch (InvalidOperationException e) { return BadRequest(new { message = e.Message }); }
+    }
+
+    [HttpPut("epis/{sectorEpiId:guid}")]
+    [Authorize(Roles = "Administrator,HR")]
+    public async Task<IActionResult> UpdateEpi(Guid sectorEpiId, [FromBody] UpdateSectorEpiDto dto, CancellationToken ct)
+    {
+        try { return Ok(await _service.UpdateEpiAsync(sectorEpiId, dto, ct)); }
+        catch (KeyNotFoundException) { return NotFound(); }
+    }
+
+    [HttpDelete("epis/{sectorEpiId:guid}")]
+    [Authorize(Roles = "Administrator,HR")]
+    public async Task<IActionResult> RemoveEpi(Guid sectorEpiId, CancellationToken ct)
+    {
+        try { await _service.RemoveEpiAsync(sectorEpiId, ct); return NoContent(); }
+        catch (KeyNotFoundException) { return NotFound(); }
+    }
+
+    [HttpGet("suggested-epis/{employeeId:guid}")]
+    public async Task<IActionResult> GetSuggestedEpis(Guid employeeId, CancellationToken ct)
+    {
+        try { return Ok(await _service.GetSuggestedEpisForEmployeeAsync(employeeId, ct)); }
+        catch (KeyNotFoundException) { return NotFound(); }
     }
 }
