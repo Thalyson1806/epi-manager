@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>EpiManagement.BiometricBridge</RootNamespace>
+    <AssemblyName>EpiManagement.BiometricBridge</AssemblyName>
+    <!-- Run as Windows application (can be minimized to tray) -->
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- DigitalPersona One Touch SDK .NET assembly.
+         After installing the SDK (SDK/Setup.exe), the DLL is registered in the GAC.
+         Typical location: C:\Program Files\DigitalPersona\One Touch for Windows SDK\Bin\DPFPLib.dll
+         Copy DPFPLib.dll to this project folder and reference it below. -->
+    <!-- <Reference Include="DPFPLib">
+      <HintPath>DPFPLib.dll</HintPath>
+      <EmbedInteropTypes>false</EmbedInteropTypes>
+    </Reference> -->
+    <PackageReference Include="Microsoft.AspNetCore.WebSockets" Version="2.2.1" />
+  </ItemGroup>
+</Project>
