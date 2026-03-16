@@ -10,6 +10,10 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 
+// Npgsql 6+ rejeita DateTime com Kind=Unspecified em colunas timestamptz.
+// Este switch ativa o comportamento legado que aceita datas sem timezone.
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -38,7 +42,9 @@ builder.Services.AddCors(o => o.AddPolicy("AllowFrontend", p =>
      .AllowAnyHeader()
      .AllowAnyMethod()));
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(o =>
+        o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {

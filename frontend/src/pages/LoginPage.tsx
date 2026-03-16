@@ -51,9 +51,12 @@ export default function LoginPage() {
         <CardContent sx={{ p: 4 }}>
           <Box sx={{ textAlign: 'center', mb: 3 }}>
             <Security sx={{ fontSize: 56, color: 'primary.main', mb: 1 }} />
-            <Typography variant="h5" fontWeight={700}>Gestão de EPI</Typography>
+            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 2 }}>
+              RH Digital
+            </Typography>
+            <Typography variant="h5" fontWeight={700} sx={{ mt: 0.5 }}>Módulo EPI</Typography>
             <Typography variant="body2" color="text.secondary">
-              Sistema Corporativo de Controle de EPIs
+              Controle eletrônico de Equipamentos de Proteção Individual
             </Typography>
           </Box>
 

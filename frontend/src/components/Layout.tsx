@@ -54,11 +54,11 @@ export default function Layout() {
   const drawer = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Box sx={{ p: 2, bgcolor: 'primary.main', color: 'white' }}>
-        <Typography variant="h6" fontWeight={700}>
-          Gestão de EPI
+        <Typography variant="caption" sx={{ opacity: 0.7, textTransform: 'uppercase', letterSpacing: 1 }}>
+          RH Digital
         </Typography>
-        <Typography variant="caption" sx={{ opacity: 0.85 }}>
-          Sistema Corporativo
+        <Typography variant="h6" fontWeight={700}>
+          Módulo EPI
         </Typography>
       </Box>
       <List sx={{ flex: 1, pt: 1 }}>

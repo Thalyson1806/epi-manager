@@ -4,11 +4,12 @@ import {
   Box, Stepper, Step, StepLabel, Card, CardContent, Typography,
   Button, CircularProgress, Alert, Chip, Grid,
   Table, TableBody, TableCell, TableRow, IconButton, Divider,
-  Paper,
+  Paper, LinearProgress,
 } from '@mui/material'
-import { Fingerprint, Add, Remove, CheckCircle, Send } from '@mui/icons-material'
+import { Fingerprint, Add, Remove, CheckCircle, Send, WifiOff } from '@mui/icons-material'
 import { deliveriesApi, type BiometricIdentifyResult } from '../api/deliveries'
 import { episApi, type Epi } from '../api/epis'
+import { useBiometric } from '../hooks/useBiometric'
 
 const STEPS = ['Identificação Biométrica', 'Seleção de EPIs', 'Assinatura Biométrica', 'Confirmação']
 
@@ -19,60 +20,110 @@ interface SelectedEpi {
 
 export default function DeliveryPage() {
   const qc = useQueryClient()
+
+  // Hook de biometria — gerencia WebSocket com o bridge local
+  const bio = useBiometric()
+
   const [activeStep, setActiveStep] = useState(0)
   const [identifiedEmployee, setIdentifiedEmployee] = useState<BiometricIdentifyResult | null>(null)
   const [selectedEpis, setSelectedEpis] = useState<SelectedEpi[]>([])
   const [biometricSignature, setBiometricSignature] = useState<string | null>(null)
   const [scanning, setScanning] = useState(false)
+  const [progress, setProgress] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
   const { data: epis = [] } = useQuery({ queryKey: ['epis'], queryFn: episApi.getAll })
-
-  const identifyMutation = useMutation({
-    mutationFn: deliveriesApi.identify,
-    onSuccess: (result) => {
-      if (result.identified) {
-        setIdentifiedEmployee(result)
-        setActiveStep(1)
-        setError('')
-      } else {
-        setError('Funcionário não identificado. Tente novamente.')
-      }
-      setScanning(false)
-    },
-    onError: () => { setError('Erro ao processar biometria.'); setScanning(false) },
-  })
 
   const deliveryMutation = useMutation({
     mutationFn: deliveriesApi.create,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['dashboard'] })
       setSuccess(true)
-      setActiveStep(4)
     },
     onError: () => setError('Erro ao registrar entrega.'),
   })
 
-  // Simulate biometric capture (replace with actual DigitalPersona SDK WebSocket/bridge)
-  const handleBiometricScan = async (purpose: 'identify' | 'sign') => {
+  // ----------------------------------------------------------------------------
+  // PASSO 1: Identificação biométrica
+  // Chama o bridge → captura 1 amostra → envia ao backend → identifica funcionário
+  // ----------------------------------------------------------------------------
+  const handleIdentify = async () => {
     setScanning(true)
     setError('')
+    setProgress('Conectando ao leitor biométrico...')
 
-    if (purpose === 'identify') {
-      // In production: call local bridge/service that interfaces with DigitalPersona SDK
-      // For now: prompt for manual employee search or use demo mode
-      setTimeout(() => {
-        // Demo: send empty base64 to backend which will handle gracefully
-        identifyMutation.mutate(btoa('demo-biometric-sample'))
-      }, 2000)
-    } else {
-      // Signature capture
-      setTimeout(() => {
-        setBiometricSignature(btoa('signature-sample-' + Date.now()))
+    try {
+      // Verifica se o bridge está online antes de tentar
+      const status = await bio.checkStatus()
+      if (!status.online) {
+        setError(
+          'Biometric Bridge não encontrado. Verifique se o serviço está rodando na máquina com o leitor DigitalPersona conectado (ws://localhost:7001).',
+        )
         setScanning(false)
-        setActiveStep(3)
-      }, 2000)
+        setProgress('')
+        return
+      }
+
+      if (!status.readerConnected) {
+        setError('Leitor DigitalPersona não detectado. Verifique a conexão USB.')
+        setScanning(false)
+        setProgress('')
+        return
+      }
+
+      // Captura amostra via bridge WebSocket
+      // O usuário deve colocar o dedo no leitor
+      const sampleBase64 = await bio.captureVerification((msg) => setProgress(msg))
+
+      // Envia amostra ao backend para identificação 1:N
+      setProgress('Identificando funcionário...')
+      const result = await deliveriesApi.identify(sampleBase64)
+
+      if (result.identified) {
+        setIdentifiedEmployee(result)
+        setActiveStep(1)
+        setProgress('')
+      } else {
+        setError('Funcionário não identificado. Verifique o cadastro biométrico ou tente novamente.')
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro desconhecido'
+      setError(message)
+    } finally {
+      setScanning(false)
+      setProgress('')
+    }
+  }
+
+  // ----------------------------------------------------------------------------
+  // PASSO 3: Assinatura biométrica
+  // Segunda leitura do dedo — funciona como assinatura digital da ficha
+  // O template capturado fica registrado no registro de entrega (biometric_signature)
+  // ----------------------------------------------------------------------------
+  const handleSign = async () => {
+    setScanning(true)
+    setError('')
+    setProgress('Solicitando assinatura biométrica...')
+
+    try {
+      const status = await bio.checkStatus()
+      if (!status.online) {
+        setError('Biometric Bridge offline. Verifique o serviço.')
+        return
+      }
+
+      // Captura amostra para usar como assinatura
+      const signatureBase64 = await bio.captureVerification((msg) => setProgress(msg))
+
+      setBiometricSignature(signatureBase64)
+      setActiveStep(3)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao capturar assinatura'
+      setError(message)
+    } finally {
+      setScanning(false)
+      setProgress('')
     }
   }
 
@@ -86,8 +137,7 @@ export default function DeliveryPage() {
 
   const handleChangeQuantity = (epiId: string, delta: number) => {
     setSelectedEpis((prev) =>
-      prev.map((s) => s.epi.id === epiId ? { ...s, quantity: Math.max(1, s.quantity + delta) } : s)
-        .filter((s) => s.quantity > 0),
+      prev.map((s) => s.epi.id === epiId ? { ...s, quantity: Math.max(1, s.quantity + delta) } : s),
     )
   }
 
@@ -110,6 +160,7 @@ export default function DeliveryPage() {
     setSelectedEpis([])
     setBiometricSignature(null)
     setScanning(false)
+    setProgress('')
     setError('')
     setSuccess(false)
   }
@@ -137,31 +188,64 @@ export default function DeliveryPage() {
         ))}
       </Stepper>
 
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
+      {error && (
+        <Alert
+          severity="error"
+          sx={{ mb: 2 }}
+          onClose={() => setError('')}
+          icon={error.includes('Bridge') || error.includes('leitor') ? <WifiOff /> : undefined}
+        >
+          {error}
+        </Alert>
+      )}
 
-      {/* Step 0: Biometric Identification */}
+      {/* PASSO 0: Identificação Biométrica */}
       {activeStep === 0 && (
         <Card>
           <CardContent sx={{ textAlign: 'center', py: 6 }}>
-            <Fingerprint sx={{ fontSize: 80, color: scanning ? 'primary.main' : 'grey.400', mb: 2, transition: 'color 0.3s' }} />
+            <Fingerprint
+              sx={{
+                fontSize: 80,
+                color: scanning ? 'primary.main' : 'grey.400',
+                mb: 2,
+                transition: 'color 0.3s',
+                animation: scanning ? 'pulse 1.5s infinite' : 'none',
+              }}
+            />
             <Typography variant="h6" sx={{ mb: 1 }}>Identificação Biométrica</Typography>
-            <Typography color="text.secondary" sx={{ mb: 3 }}>
+            <Typography color="text.secondary" sx={{ mb: 1 }}>
               Solicite ao funcionário que coloque o dedo no leitor DigitalPersona
             </Typography>
-            <Button
-              variant="contained"
-              size="large"
-              onClick={() => handleBiometricScan('identify')}
-              disabled={scanning}
-              startIcon={scanning ? <CircularProgress size={20} color="inherit" /> : <Fingerprint />}
-            >
-              {scanning ? 'Aguardando leitura...' : 'Iniciar Leitura Biométrica'}
-            </Button>
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 3, display: 'block' }}>
+              O serviço bridge deve estar rodando na máquina com o leitor conectado
+            </Typography>
+
+            {progress && (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" color="primary" sx={{ mb: 1 }}>{progress}</Typography>
+                <LinearProgress />
+              </Box>
+            )}
+
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+              <Button
+                variant="contained"
+                size="large"
+                onClick={handleIdentify}
+                disabled={scanning}
+                startIcon={scanning ? <CircularProgress size={20} color="inherit" /> : <Fingerprint />}
+              >
+                {scanning ? 'Lendo digital...' : 'Iniciar Leitura Biométrica'}
+              </Button>
+              {scanning && (
+                <Button variant="outlined" onClick={bio.cancel}>Cancelar</Button>
+              )}
+            </Box>
           </CardContent>
         </Card>
       )}
 
-      {/* Step 1: EPI Selection */}
+      {/* PASSO 1: Seleção de EPIs */}
       {activeStep === 1 && identifiedEmployee && (
         <Grid container spacing={3}>
           <Grid item xs={12} md={4}>
@@ -208,12 +292,7 @@ export default function DeliveryPage() {
                   </Table>
                 )}
                 <Divider sx={{ my: 2 }} />
-                <Button
-                  variant="contained"
-                  fullWidth
-                  disabled={selectedEpis.length === 0}
-                  onClick={() => setActiveStep(2)}
-                >
+                <Button variant="contained" fullWidth disabled={selectedEpis.length === 0} onClick={() => setActiveStep(2)}>
                   Prosseguir para Assinatura
                 </Button>
               </CardContent>
@@ -247,33 +326,45 @@ export default function DeliveryPage() {
         </Grid>
       )}
 
-      {/* Step 2: Biometric Signature */}
+      {/* PASSO 2: Assinatura Biométrica */}
       {activeStep === 2 && (
         <Card>
           <CardContent sx={{ textAlign: 'center', py: 6 }}>
             <Fingerprint sx={{ fontSize: 80, color: scanning ? 'secondary.main' : 'grey.400', mb: 2 }} />
             <Typography variant="h6" sx={{ mb: 1 }}>Assinatura Biométrica</Typography>
             <Typography color="text.secondary" sx={{ mb: 3 }}>
-              Solicite ao funcionário <strong>{identifiedEmployee?.employeeName}</strong> que coloque o dedo novamente para assinar a ficha
+              Solicite ao funcionário <strong>{identifiedEmployee?.employeeName}</strong> que coloque
+              o dedo novamente para assinar digitalmente a ficha de EPI
             </Typography>
+
+            {progress && (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" color="secondary" sx={{ mb: 1 }}>{progress}</Typography>
+                <LinearProgress color="secondary" />
+              </Box>
+            )}
+
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-              <Button variant="outlined" onClick={() => setActiveStep(1)}>Voltar</Button>
+              <Button variant="outlined" onClick={() => setActiveStep(1)} disabled={scanning}>Voltar</Button>
               <Button
                 variant="contained"
                 color="secondary"
                 size="large"
-                onClick={() => handleBiometricScan('sign')}
+                onClick={handleSign}
                 disabled={scanning}
                 startIcon={scanning ? <CircularProgress size={20} color="inherit" /> : <Fingerprint />}
               >
                 {scanning ? 'Capturando assinatura...' : 'Capturar Assinatura Digital'}
               </Button>
+              {scanning && (
+                <Button variant="outlined" onClick={bio.cancel}>Cancelar</Button>
+              )}
             </Box>
           </CardContent>
         </Card>
       )}
 
-      {/* Step 3: Confirmation */}
+      {/* PASSO 3: Confirmação */}
       {activeStep === 3 && (
         <Card>
           <CardContent>

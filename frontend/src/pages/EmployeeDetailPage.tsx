@@ -1,23 +1,35 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Box, Button, Card, CardContent, Typography, Chip, Grid,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  CircularProgress, Divider, TextField,
+  CircularProgress, Divider, TextField, Dialog, DialogTitle,
+  DialogContent, DialogActions, LinearProgress, Alert,
 } from '@mui/material'
 import { ArrowBack, PictureAsPdf, Fingerprint } from '@mui/icons-material'
 import { employeesApi } from '../api/employees'
 import { deliveriesApi } from '../api/deliveries'
+import { useBiometric } from '../hooks/useBiometric'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import api from '../api/axios'
 
 export default function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const qc = useQueryClient()
+  const bio = useBiometric()
+
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [exportLoading, setExportLoading] = useState(false)
+
+  // Estado do modal de cadastro biométrico
+  const [bioDialogOpen, setBioDialogOpen] = useState(false)
+  const [bioProgress, setBioProgress] = useState('')
+  const [bioScanning, setBioScanning] = useState(false)
+  const [bioError, setBioError] = useState('')
 
   const { data: emp, isLoading } = useQuery({
     queryKey: ['employee', id],
@@ -44,6 +56,50 @@ export default function EmployeeDetailPage() {
       URL.revokeObjectURL(url)
     } finally {
       setExportLoading(false)
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Cadastro biométrico: abre modal, chama bridge para enrollment (4 amostras)
+  // Ao concluir, salva o template via POST /api/employees/{id}/biometric
+  // --------------------------------------------------------------------------
+  const handleBioEnroll = async () => {
+    setBioScanning(true)
+    setBioError('')
+    setBioProgress('Verificando leitor biométrico...')
+
+    try {
+      // Verifica status do bridge antes de iniciar
+      const status = await bio.checkStatus()
+      if (!status.online) {
+        setBioError('Biometric Bridge offline. Inicie o serviço biometric-bridge na máquina com o leitor.')
+        setBioScanning(false)
+        return
+      }
+      if (!status.readerConnected) {
+        setBioError('Leitor DigitalPersona não detectado. Verifique a conexão USB.')
+        setBioScanning(false)
+        return
+      }
+
+      // Inicia enrollment: captura 4 amostras e gera template
+      setBioProgress('Coloque o dedo no leitor...')
+      const templateBase64 = await bio.captureEnrollment((msg) => setBioProgress(msg))
+
+      // Salva template no banco via API
+      setBioProgress('Salvando template biométrico...')
+      await api.post(`/employees/${id}/biometric`, {
+        employeeId: id,
+        templateBase64,
+      })
+
+      qc.invalidateQueries({ queryKey: ['employee', id] })
+      setBioDialogOpen(false)
+      setBioProgress('')
+    } catch (err: unknown) {
+      setBioError(err instanceof Error ? err.message : 'Erro ao cadastrar biometria')
+    } finally {
+      setBioScanning(false)
     }
   }
 
@@ -90,6 +146,16 @@ export default function EmployeeDetailPage() {
                     variant="outlined"
                   />
                 </Box>
+                {/* Botão de cadastro biométrico */}
+                <Button
+                  variant={emp?.hasBiometric ? 'outlined' : 'contained'}
+                  color={emp?.hasBiometric ? 'inherit' : 'primary'}
+                  startIcon={<Fingerprint />}
+                  onClick={() => { setBioError(''); setBioProgress(''); setBioDialogOpen(true) }}
+                  size="small"
+                >
+                  {emp?.hasBiometric ? 'Recadastrar Biometria' : 'Cadastrar Biometria'}
+                </Button>
               </Box>
             </CardContent>
           </Card>
@@ -103,12 +169,7 @@ export default function EmployeeDetailPage() {
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
                   <TextField type="date" label="De" size="small" value={startDate} onChange={(e) => setStartDate(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ width: 150 }} />
                   <TextField type="date" label="Até" size="small" value={endDate} onChange={(e) => setEndDate(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ width: 150 }} />
-                  <Button
-                    variant="outlined"
-                    startIcon={<PictureAsPdf />}
-                    onClick={handleExportPdf}
-                    disabled={exportLoading}
-                  >
+                  <Button variant="outlined" startIcon={<PictureAsPdf />} onClick={handleExportPdf} disabled={exportLoading}>
                     Exportar PDF
                   </Button>
                 </Box>
@@ -162,6 +223,54 @@ export default function EmployeeDetailPage() {
           </Card>
         </Grid>
       </Grid>
+
+      {/* Modal de Cadastro Biométrico */}
+      <Dialog open={bioDialogOpen} onClose={() => !bioScanning && setBioDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Fingerprint color="primary" />
+          Cadastro Biométrico — {emp?.name}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ textAlign: 'center', py: 3 }}>
+            <Fingerprint
+              sx={{
+                fontSize: 72,
+                color: bioScanning ? 'primary.main' : 'grey.400',
+                mb: 2,
+                transition: 'color 0.5s',
+              }}
+            />
+            <Typography variant="body1" sx={{ mb: 1 }}>
+              O funcionário deve colocar o dedo no leitor <strong>4 vezes</strong>
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+              O Biometric Bridge deve estar rodando na máquina com o leitor conectado
+            </Typography>
+
+            {bioError && <Alert severity="error" sx={{ mb: 2, textAlign: 'left' }}>{bioError}</Alert>}
+
+            {bioProgress && (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" color="primary" sx={{ mb: 1 }}>{bioProgress}</Typography>
+                <LinearProgress />
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { bio.cancel(); setBioDialogOpen(false) }} disabled={false}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleBioEnroll}
+            disabled={bioScanning}
+            startIcon={bioScanning ? <CircularProgress size={18} color="inherit" /> : <Fingerprint />}
+          >
+            {bioScanning ? 'Cadastrando...' : 'Iniciar Cadastro'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }
