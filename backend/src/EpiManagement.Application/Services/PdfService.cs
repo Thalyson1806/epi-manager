@@ -2,190 +2,270 @@ using EpiManagement.Domain.Interfaces;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
-using QuestPDF.Elements.Table;
 
 namespace EpiManagement.Application.Services;
 
 public class PdfService
 {
     private readonly IUnitOfWork _uow;
+    private readonly EpiDeliveryService _deliveryService;
 
-    public PdfService(IUnitOfWork uow)
+    public PdfService(IUnitOfWork uow, EpiDeliveryService deliveryService)
     {
         _uow = uow;
+        _deliveryService = deliveryService;
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
-    public async Task<byte[]> GenerateEmployeeEpiCardAsync(
-        Guid employeeId, DateTime? startDate, DateTime? endDate, CancellationToken ct = default)
+    public async Task<byte[]> GenerateEmployeeEpiCardAsync(Guid employeeId, DateTime? startDate, DateTime? endDate, CancellationToken ct = default)
     {
         var emp = await _uow.Employees.GetByIdAsync(employeeId, ct)
             ?? throw new KeyNotFoundException("Funcionário não encontrado.");
 
-        var deliveries = (await _uow.EpiDeliveries.GetByEmployeeAsync(employeeId, ct))
-            .Where(d => (!startDate.HasValue || d.DeliveryDate >= startDate.Value)
-                     && (!endDate.HasValue   || d.DeliveryDate <= endDate.Value))
-            .OrderByDescending(d => d.DeliveryDate)
-            .ToList();
+        var allDeliveries = (await _deliveryService.GetByEmployeeAsync(employeeId, ct))
+            .OrderBy(d => d.DeliveryDate).ToList();
 
-        // Achata itens em linhas
-        var rows = deliveries
-            .SelectMany(d => d.Items.Select(i => (Delivery: d, Item: i)))
-            .ToList();
+        if (startDate.HasValue)
+            allDeliveries = allDeliveries.Where(d => d.DeliveryDate >= startDate.Value).ToList();
+        if (endDate.HasValue)
+            allDeliveries = allDeliveries.Where(d => d.DeliveryDate <= endDate.Value).ToList();
+
+        var firstDelivery = allDeliveries.FirstOrDefault(d => d.IsFirstDelivery);
+        var subsequentDeliveries = allDeliveries.Where(d => !d.IsFirstDelivery).ToList();
 
         var doc = Document.Create(container =>
         {
             container.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.MarginHorizontal(1.4f, Unit.Centimetre);
-                page.MarginVertical(1.2f, Unit.Centimetre);
-                page.DefaultTextStyle(x => x.FontSize(9).FontFamily("Arial"));
+                page.MarginTop(1.2f, Unit.Centimetre);
+                page.MarginBottom(1f, Unit.Centimetre);
+                page.MarginHorizontal(1.5f, Unit.Centimetre);
+                page.DefaultTextStyle(x => x.FontFamily("Arial").FontSize(9));
 
                 page.Content().Column(col =>
                 {
-                    // ── Título ────────────────────────────────────────────────
-                    col.Item().BorderBottom(1).PaddingBottom(4).Column(c =>
+                    // ── Cabeçalho ────────────────────────────────────────────
+                    col.Item().Border(1).BorderColor(Colors.Black).Table(t =>
                     {
-                        c.Item().AlignCenter().Text("CONTROLE DE USO DE EQUIPAMENTOS")
-                            .Bold().FontSize(14);
-                        c.Item().AlignCenter().Text("PROTEÇÃO INDIVIDUAL (EPI15)")
-                            .Bold().FontSize(12);
-                    });
+                        t.ColumnsDefinition(c => { c.RelativeColumn(3); c.RelativeColumn(1); });
 
-                    // ── NR-6 ──────────────────────────────────────────────────
-                    col.Item().PaddingTop(6).Row(row =>
-                    {
-                        row.RelativeItem(3).Text(
-                            "Conforme determinações da Norma Regulamentadora – NR-6, deve ser aberto uma ficha de controle de entrega dos " +
-                            "Equipamentos de Proteção Individual – EPI's, fornecidos aos empregados, e estes, a assinarem a cada vez que retirar " +
-                            "um novo EPI ou efetuar uma troca.")
-                            .FontSize(8).Italic();
-                        row.ConstantItem(8);
-                        row.RelativeItem(1).AlignRight().AlignBottom()
-                            .Text("NORMA REGULAMENTADORA").Bold().FontSize(8).Underline();
-                    });
-
-                    // ── Declaração de Recebimento ─────────────────────────────
-                    col.Item().PaddingTop(8).AlignCenter().Text("DECLARAÇÃO DE RECEBIMENTO")
-                        .Bold().FontSize(10).Underline();
-
-                    col.Item().PaddingTop(4).Text(
-                        "Declaro ter recebido gratuitamente, após orientação de uso, realizada pela CIPA, os Equipamentos de Proteção Individual " +
-                        "abaixo descritos, os quais abrigo-me a usá-los em meu trabalho, sendo que os mesmos ficarão sob minha responsabilidade, " +
-                        "autorizando o desconto caso eu os perca ou os destrua.")
-                        .FontSize(8).Italic();
-
-                    col.Item().PaddingTop(3).Text(
-                        "Também estou ciente que a não utilização dos mesmos em minhas atividades profissionais, é ato faltoso e passível de punições " +
-                        "legais e disciplinares, de acordo com a Consolidação das Leis do Trabalho (CLT) - Capítulo V – Seção I - Art. 158.")
-                        .FontSize(8).Italic();
-
-                    col.Item().PaddingTop(8).BorderTop(1).BorderBottom(1).PaddingVertical(4).Row(row =>
-                    {
-                        row.RelativeItem(4).Text(text =>
+                        t.Cell().RowSpan(2).Padding(6).Column(inner =>
                         {
-                            text.Span("NOME: ").Bold();
-                            text.Span(emp.Name.ToUpper());
-                            text.Span("    FUNÇÃO: ").Bold();
-                            text.Span(emp.Position.ToUpper());
+                            inner.Item().Text("CONTROLE DE USO DE EQUIPAMENTOS")
+                                .Bold().FontSize(12).AlignCenter();
+                            inner.Item().Text("PROTEÇÃO INDIVIDUAL (EPI15)")
+                                .Bold().FontSize(11).AlignCenter();
                         });
-                        row.RelativeItem(1).AlignRight().Text(text =>
+
+                        t.Cell().BorderLeft(1).BorderColor(Colors.Black).Padding(4).AlignRight()
+                            .Text("NORMA REGULAMENTADORA").Bold().Underline().FontSize(9);
+
+                        t.Cell().BorderLeft(1).BorderTop(1).BorderColor(Colors.Black).Padding(4).AlignRight()
+                            .Text("NR-6 — Equipamento de Proteção Individual").FontSize(8).Italic();
+                    });
+
+                    col.Item().PaddingTop(4);
+
+                    // ── Texto NR-6 ───────────────────────────────────────────
+                    col.Item().Border(1).BorderColor(Colors.Black).Padding(6).Text(t =>
+                    {
+                        t.Span("Conforme determinações da Norma Regulamentadora – NR-6, deve ser aberto uma ficha de controle de entrega dos ");
+                        t.Span("Equipamentos de Proteção Individual – EPI's").Bold();
+                        t.Span(", fornecidos aos empregados, e estes, a assinarem a cada vez que retirar um novo EPI ou efetuar uma troca.");
+                    });
+
+                    col.Item().PaddingTop(4);
+
+                    // ── Declaração de Recebimento ────────────────────────────
+                    col.Item().Border(1).BorderColor(Colors.Black).Padding(6).Column(inner =>
+                    {
+                        inner.Item().PaddingBottom(4)
+                            .Text("DECLARAÇÃO DE RECEBIMENTO")
+                            .Bold().FontSize(10).Underline().AlignCenter();
+
+                        inner.Item().Text(
+                            "Declaro ter recebido gratuitamente, após orientação de uso, realizada pela CIPA, os Equipamentos de Proteção Individual " +
+                            "abaixo descritos, os quais abrigo-me a usá-los em meu trabalho, sendo que os mesmos ficarão sob minha responsabilidade, " +
+                            "autorizando o desconto caso eu os perca ou os destrua.");
+
+                        inner.Item().PaddingTop(4).Text(
+                            "Também estou ciente que a não utilização dos mesmos em minhas atividades profissionais, é ato faltoso e passível de " +
+                            "punições legais e disciplinares, de acordo com a Consolidação das Leis do Trabalho (CLT) - Capítulo V – Seção I – Art. 158.");
+
+                        inner.Item().PaddingTop(10).Row(row =>
                         {
-                            text.Span("MF  REGISTRO: ").Bold();
-                            text.Span(emp.Registration);
+                            row.RelativeItem().Column(dateCol =>
+                            {
+                                if (firstDelivery != null)
+                                    dateCol.Item().Text(firstDelivery.DeliveryDate.ToLocalTime().ToString("dd/MM/yyyy"))
+                                        .FontSize(9).AlignCenter();
+                                else
+                                    dateCol.Item().Text("_____ / _____ / _______").FontSize(9).AlignCenter();
+                                dateCol.Item().BorderTop(1).BorderColor(Colors.Black)
+                                    .PaddingTop(2).Text("Data").FontSize(8).AlignCenter();
+                            });
+
+                            row.ConstantItem(20);
+
+                            row.RelativeItem(3).Column(sigCol =>
+                            {
+                                if (firstDelivery is { HasBiometricSignature: true })
+                                {
+                                    sigCol.Item().Border(1).BorderColor(Colors.Grey.Darken2)
+                                        .Background(Colors.Grey.Lighten4).Padding(6).Column(seal =>
+                                        {
+                                            seal.Item().Text("✓  ASSINADO ELETRONICAMENTE VIA BIOMETRIA DIGITAL")
+                                                .Bold().FontSize(7.5f).AlignCenter();
+                                            seal.Item().PaddingTop(2)
+                                                .Text(emp.Name.ToUpper()).Bold().FontSize(8).AlignCenter();
+                                            seal.Item().Text($"R.E.: {emp.Registration}")
+                                                .FontSize(7.5f).AlignCenter();
+                                            seal.Item().Text(firstDelivery.DeliveryDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))
+                                                .FontSize(7).AlignCenter().FontColor(Colors.Grey.Darken1);
+                                        });
+                                }
+                                else
+                                {
+                                    sigCol.Item().Height(40).BorderBottom(1).BorderColor(Colors.Black);
+                                    sigCol.Item().PaddingTop(2).Text("Assinatura do Empregado").FontSize(8).AlignCenter();
+                                }
+                            });
                         });
                     });
+
+                    col.Item().PaddingTop(4);
+
+                    // ── Dados do funcionário ──────────────────────────────────
+                    col.Item().Border(1).BorderColor(Colors.Black).Padding(5).Row(row =>
+                    {
+                        row.RelativeItem(3).Text(t =>
+                        {
+                            t.Span("NOME: ").Bold();
+                            t.Span(emp.Name.ToUpper());
+                        });
+                        row.RelativeItem(2).Text(t =>
+                        {
+                            t.Span("FUNÇÃO: ").Bold();
+                            t.Span(emp.Position.ToUpper());
+                        });
+                        row.RelativeItem().Text(t =>
+                        {
+                            t.Span("MF REGISTRO: ").Bold();
+                            t.Span(emp.Registration);
+                        });
+                    });
+
+                    col.Item().PaddingTop(4);
 
                     // ── Tabela de EPIs ────────────────────────────────────────
-                    col.Item().PaddingTop(6).Table(t =>
+                    col.Item().Border(1).BorderColor(Colors.Black).Table(t =>
                     {
                         t.ColumnsDefinition(c =>
                         {
-                            c.RelativeColumn(4); // DESCRIÇÃO
-                            c.RelativeColumn(1); // QUANT.
-                            c.RelativeColumn(1); // TROCA SIM
-                            c.RelativeColumn(1); // TROCA NÃO
-                            c.RelativeColumn(2); // DATA
-                            c.RelativeColumn(2); // CA
-                            c.RelativeColumn(3); // ASSINATURA
+                            c.RelativeColumn(4); // Descrição
+                            c.RelativeColumn(1); // Quant.
+                            c.RelativeColumn(1); // Troca SIM
+                            c.RelativeColumn(1); // Troca NÃO
+                            c.RelativeColumn(2); // Data
+                            c.RelativeColumn(1); // CA
+                            c.RelativeColumn(2); // Assinatura
                         });
+
+                        static IContainer HeaderCell(IContainer c) =>
+                            c.Background(Colors.Grey.Lighten3).Border(1).BorderColor(Colors.Black)
+                             .Padding(3).AlignCenter().AlignMiddle();
+
+                        static IContainer DataCell(IContainer c) =>
+                            c.Border(1).BorderColor(Colors.Black).Padding(3).AlignMiddle();
 
                         t.Header(h =>
                         {
-                            h.Cell().Border(0.5f).PaddingHorizontal(3).PaddingVertical(3).Text("DESCRIÇÃO").Bold().FontSize(8);
-                            h.Cell().Border(0.5f).PaddingHorizontal(3).PaddingVertical(3).Text("QUANT.").Bold().FontSize(8).AlignCenter();
-                            h.Cell().ColumnSpan(2).Border(0.5f).PaddingVertical(2).Column(c2 =>
-                            {
-                                c2.Item().AlignCenter().Text("TROCA").Bold().FontSize(8);
-                                c2.Item().Row(r2 =>
-                                {
-                                    r2.RelativeItem().BorderTop(0.5f).AlignCenter().Text("SIM").Bold().FontSize(8);
-                                    r2.RelativeItem().BorderTop(0.5f).BorderLeft(0.5f).AlignCenter().Text("NÃO").Bold().FontSize(8);
-                                });
-                            });
-                            h.Cell().Border(0.5f).PaddingHorizontal(3).PaddingVertical(3).Text("DATA").Bold().FontSize(8);
-                            h.Cell().Border(0.5f).PaddingHorizontal(3).PaddingVertical(3).Text("CA").Bold().FontSize(8);
-                            h.Cell().Border(0.5f).PaddingHorizontal(3).PaddingVertical(3).Text("ASSINATURA").Bold().FontSize(8);
+                            h.Cell().RowSpan(2).Element(HeaderCell).Text("DESCRIÇÃO").Bold();
+                            h.Cell().RowSpan(2).Element(HeaderCell).Text("QUANT.").Bold();
+                            h.Cell().ColumnSpan(2).Element(HeaderCell).Text("TROCA").Bold();
+                            h.Cell().RowSpan(2).Element(HeaderCell).Text("DATA").Bold();
+                            h.Cell().RowSpan(2).Element(HeaderCell).Text("CA").Bold();
+                            h.Cell().RowSpan(2).Element(HeaderCell).Text("ASSINATURA").Bold();
+                            h.Cell().Element(HeaderCell).Text("SIM").Bold();
+                            h.Cell().Element(HeaderCell).Text("NÃO").Bold();
                         });
 
-                        int minRows = Math.Max(15, rows.Count);
-                        for (int idx = 0; idx < minRows; idx++)
+                        // Primeira entrega — assinatura já está no termo
+                        if (firstDelivery != null)
                         {
-                            bool hasData = idx < rows.Count;
-                            var delivery = hasData ? rows[idx].Delivery : null;
-                            var item     = hasData ? rows[idx].Item     : null;
-
-                            void DCell(string text = "", bool center = false)
+                            foreach (var item in firstDelivery.Items)
                             {
-                                var tb = t.Cell().Border(0.5f).MinHeight(18)
-                                    .PaddingHorizontal(3).PaddingVertical(2)
-                                    .Text(text).FontSize(8);
-                                if (center) tb.AlignCenter();
-                            }
-
-                            DCell(item?.Epi?.Name ?? "");
-                            DCell(item != null ? item.Quantity.ToString() : "", true);
-                            DCell("", true); // TROCA SIM — preenche manualmente
-                            DCell("", true); // TROCA NÃO — preenche manualmente
-                            DCell(delivery != null ? delivery.DeliveryDate.ToString("dd/MM/yyyy") : "");
-                            DCell(item?.Epi?.Code ?? "");
-
-                            // ASSINATURA — selo biométrico gov.br style
-                            if (delivery?.BiometricSignature != null)
-                            {
-                                t.Cell().Border(0.5f).MinHeight(18)
-                                    .PaddingHorizontal(4).PaddingVertical(3).Column(sig =>
-                                    {
-                                        sig.Item().BorderBottom(0.5f).PaddingBottom(1)
-                                            .Text(emp.Name.ToUpper()).Bold().FontSize(7);
-                                        sig.Item().Text($"R.E.: {emp.Registration}").FontSize(6);
-                                        sig.Item().Text("Assinado via biometria digital")
-                                            .FontSize(6).Italic();
-                                        sig.Item()
-                                            .Text(delivery.DeliveryDate.ToString("dd/MM/yyyy HH:mm"))
-                                            .FontSize(6);
-                                    });
-                            }
-                            else
-                            {
-                                DCell();
+                                t.Cell().Element(DataCell).Text(item.EpiName);
+                                t.Cell().Element(DataCell).AlignCenter().Text(item.Quantity.ToString());
+                                t.Cell().Element(DataCell).AlignCenter().Text(""); // Troca SIM
+                                t.Cell().Element(DataCell).AlignCenter().Text("X"); // Troca NÃO (recebimento novo)
+                                t.Cell().Element(DataCell).AlignCenter()
+                                    .Text(firstDelivery.DeliveryDate.ToLocalTime().ToString("dd/MM/yyyy"));
+                                t.Cell().Element(DataCell).AlignCenter().Text("—");
+                                t.Cell().Element(DataCell).AlignCenter()
+                                    .Text(firstDelivery.HasBiometricSignature ? $"✓ Bio\n{emp.Registration}" : "").FontSize(7);
                             }
                         }
+
+                        // Trocas subsequentes
+                        foreach (var delivery in subsequentDeliveries)
+                        {
+                            foreach (var item in delivery.Items)
+                            {
+                                var desc = item.EpiName;
+                                if (item.IsEarlyReplacement)
+                                    desc += "\n★ Troca antecipada";
+
+                                t.Cell().Element(DataCell).Text(desc).FontSize(8);
+                                t.Cell().Element(DataCell).AlignCenter().Text(item.Quantity.ToString());
+                                t.Cell().Element(DataCell).AlignCenter().Text("X"); // Troca SIM
+                                t.Cell().Element(DataCell).AlignCenter().Text("");
+                                t.Cell().Element(DataCell).AlignCenter()
+                                    .Text(delivery.DeliveryDate.ToLocalTime().ToString("dd/MM/yyyy"));
+                                t.Cell().Element(DataCell).AlignCenter().Text("—");
+                                t.Cell().Element(DataCell).AlignCenter()
+                                    .Text(delivery.HasBiometricSignature ? $"✓ Bio\n{emp.Registration}" : "").FontSize(7);
+                            }
+                        }
+
+                        // Linhas em branco
+                        int used = (firstDelivery?.Items.Count() ?? 0)
+                            + subsequentDeliveries.Sum(d => d.Items.Count());
+                        int blanks = Math.Max(5, 12 - used);
+                        for (int i = 0; i < blanks; i++)
+                            for (int c = 0; c < 7; c++)
+                                t.Cell().Element(DataCell).Text(" ").FontSize(10);
                     });
+
+                    // ── Observações: trocas antecipadas ──────────────────────
+                    var earlyItems = allDeliveries
+                        .SelectMany(d => d.Items
+                            .Where(i => i.IsEarlyReplacement && !string.IsNullOrEmpty(i.EarlyReplacementReason))
+                            .Select(i => (item: i, date: d.DeliveryDate)))
+                        .ToList();
+
+                    if (earlyItems.Any())
+                    {
+                        col.Item().PaddingTop(6).Border(1).BorderColor(Colors.Black).Padding(5).Column(obs =>
+                        {
+                            obs.Item().Text("OBSERVAÇÕES — TROCAS ANTECIPADAS").Bold().FontSize(9);
+                            foreach (var (item, date) in earlyItems)
+                                obs.Item().PaddingTop(2).Text(t =>
+                                {
+                                    t.Span($"• {date.ToLocalTime():dd/MM/yyyy} – {item.EpiName}: ").Bold().FontSize(8);
+                                    t.Span(item.EarlyReplacementReason).FontSize(8);
+                                });
+                        });
+                    }
                 });
 
-                page.Footer().Row(row =>
+                page.Footer().AlignRight().Text(t =>
                 {
-                    row.RelativeItem().Text($"RH - Metalurgica Formigari   |   Gerado em {DateTime.Now:dd/MM/yyyy HH:mm}")
-                        .FontSize(7);
-                    row.RelativeItem().AlignRight().Text(t =>
-                    {
-                        t.Span("Página ").FontSize(7);
-                        t.CurrentPageNumber().FontSize(7);
-                        t.Span(" / ").FontSize(7);
-                        t.TotalPages().FontSize(7);
-                    });
+                    t.Span("Página ").FontSize(8);
+                    t.CurrentPageNumber().FontSize(8);
+                    t.Span(" de ").FontSize(8);
+                    t.TotalPages().FontSize(8);
                 });
             });
         });

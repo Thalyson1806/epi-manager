@@ -8,6 +8,7 @@ export interface Employee {
   sectorId: string
   sectorName: string
   position: string
+  workShift?: string
   admissionDate: string
   status: 'Active' | 'Inactive'
   hasBiometric: boolean
@@ -21,6 +22,7 @@ export interface CreateEmployee {
   registration: string
   sectorId: string
   position: string
+  workShift?: string
   admissionDate: string
 }
 

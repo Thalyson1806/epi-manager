@@ -16,6 +16,7 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(e => e.Registration).HasColumnName("registration").HasMaxLength(50).IsRequired();
         builder.Property(e => e.SectorId).HasColumnName("sector_id").IsRequired();
         builder.Property(e => e.Position).HasColumnName("position").HasMaxLength(200).IsRequired();
+        builder.Property(e => e.WorkShift).HasColumnName("work_shift").HasMaxLength(50);
         builder.Property(e => e.AdmissionDate).HasColumnName("admission_date").IsRequired();
         builder.Property(e => e.Status).HasColumnName("status").IsRequired();
         builder.Property(e => e.BiometricTemplate).HasColumnName("biometric_template");

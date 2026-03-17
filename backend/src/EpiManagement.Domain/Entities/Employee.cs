@@ -11,6 +11,7 @@ public class Employee
     public Guid SectorId { get; private set; }
     public Sector Sector { get; private set; } = null!;
     public string Position { get; private set; } = string.Empty;
+    public string? WorkShift { get; private set; }
     public DateTime AdmissionDate { get; private set; }
     public EmployeeStatus Status { get; private set; }
     public byte[]? BiometricTemplate { get; private set; }
@@ -21,7 +22,7 @@ public class Employee
 
     protected Employee() { }
 
-    public Employee(string name, string cpf, string registration, Guid sectorId, string position, DateTime admissionDate)
+    public Employee(string name, string cpf, string registration, Guid sectorId, string position, DateTime admissionDate, string? workShift = null)
     {
         Id = Guid.NewGuid();
         Name = name;
@@ -29,19 +30,21 @@ public class Employee
         Registration = registration;
         SectorId = sectorId;
         Position = position;
+        WorkShift = workShift;
         AdmissionDate = admissionDate;
         Status = EmployeeStatus.Active;
         CreatedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void Update(string name, string cpf, string registration, Guid sectorId, string position, DateTime admissionDate)
+    public void Update(string name, string cpf, string registration, Guid sectorId, string position, DateTime admissionDate, string? workShift = null)
     {
         Name = name;
         Cpf = cpf;
         Registration = registration;
         SectorId = sectorId;
         Position = position;
+        WorkShift = workShift;
         AdmissionDate = admissionDate;
         UpdatedAt = DateTime.UtcNow;
     }

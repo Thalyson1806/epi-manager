@@ -9,15 +9,20 @@ public class EpiDeliveryItem
     public Epi Epi { get; private set; } = null!;
     public int Quantity { get; private set; }
     public DateTime NextReplacementDate { get; private set; }
+    public bool IsEarlyReplacement { get; private set; }
+    public string? EarlyReplacementReason { get; private set; }
 
     protected EpiDeliveryItem() { }
 
-    public EpiDeliveryItem(Guid epiDeliveryId, Guid epiId, int quantity, int validityDays)
+    public EpiDeliveryItem(Guid epiDeliveryId, Guid epiId, int quantity, int validityDays,
+        bool isEarlyReplacement = false, string? earlyReplacementReason = null)
     {
         Id = Guid.NewGuid();
         EpiDeliveryId = epiDeliveryId;
         EpiId = epiId;
         Quantity = quantity;
         NextReplacementDate = DateTime.UtcNow.AddDays(validityDays);
+        IsEarlyReplacement = isEarlyReplacement;
+        EarlyReplacementReason = earlyReplacementReason;
     }
 }

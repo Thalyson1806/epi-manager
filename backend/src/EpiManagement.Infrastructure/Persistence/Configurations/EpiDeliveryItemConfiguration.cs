@@ -15,6 +15,8 @@ public class EpiDeliveryItemConfiguration : IEntityTypeConfiguration<EpiDelivery
         builder.Property(i => i.EpiId).HasColumnName("epi_id").IsRequired();
         builder.Property(i => i.Quantity).HasColumnName("quantity").IsRequired();
         builder.Property(i => i.NextReplacementDate).HasColumnName("next_replacement_date").IsRequired();
+        builder.Property(i => i.IsEarlyReplacement).HasColumnName("is_early_replacement").IsRequired().HasDefaultValue(false);
+        builder.Property(i => i.EarlyReplacementReason).HasColumnName("early_replacement_reason").HasMaxLength(500);
 
         builder.HasOne(i => i.EpiDelivery).WithMany(d => d.Items).HasForeignKey(i => i.EpiDeliveryId);
         builder.HasOne(i => i.Epi).WithMany(e => e.DeliveryItems).HasForeignKey(i => i.EpiId);

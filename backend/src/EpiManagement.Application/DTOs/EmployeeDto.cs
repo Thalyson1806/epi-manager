@@ -10,6 +10,7 @@ public record EmployeeDto(
     Guid SectorId,
     string SectorName,
     string Position,
+    string? WorkShift,
     DateTime AdmissionDate,
     EmployeeStatus Status,
     bool HasBiometric,
@@ -23,6 +24,7 @@ public record CreateEmployeeDto(
     string Registration,
     Guid SectorId,
     string Position,
+    string? WorkShift,
     DateTime AdmissionDate
 );
 
@@ -32,6 +34,7 @@ public record UpdateEmployeeDto(
     string Registration,
     Guid SectorId,
     string Position,
+    string? WorkShift,
     DateTime AdmissionDate
 );
 

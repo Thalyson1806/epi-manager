@@ -28,14 +28,7 @@ public class EpiDeliveryService
             return new BiometricIdentifyResultDto(false, null, null, null, null, null, null);
 
         return new BiometricIdentifyResultDto(
-            true,
-            emp.Id,
-            emp.Name,
-            emp.Registration,
-            emp.Sector?.Name,
-            emp.Position,
-            emp.PhotoUrl
-        );
+            true, emp.Id, emp.Name, emp.Registration, emp.Sector?.Name, emp.Position, emp.PhotoUrl);
     }
 
     public async Task<EpiDeliveryDto> CreateDeliveryAsync(CreateEpiDeliveryDto dto, Guid operatorId, CancellationToken ct = default)
@@ -53,26 +46,36 @@ public class EpiDeliveryService
         {
             var epi = await _uow.Epis.GetByIdAsync(item.EpiId, ct)
                 ?? throw new KeyNotFoundException($"EPI {item.EpiId} não encontrado.");
-            delivery.AddItem(new EpiDeliveryItem(delivery.Id, item.EpiId, item.Quantity, epi.ValidityDays));
+            delivery.AddItem(new EpiDeliveryItem(
+                delivery.Id, item.EpiId, item.Quantity, epi.ValidityDays,
+                item.IsEarlyReplacement, item.EarlyReplacementReason));
         }
 
         await _uow.EpiDeliveries.AddAsync(delivery, ct);
         await _uow.SaveChangesAsync(ct);
 
         var saved = await _uow.EpiDeliveries.GetByIdAsync(delivery.Id, ct);
-        return MapDelivery(saved!);
+        return await MapDeliveryAsync(saved!, ct);
     }
 
     public async Task<IEnumerable<EpiDeliveryDto>> GetByEmployeeAsync(Guid employeeId, CancellationToken ct = default)
     {
-        var deliveries = await _uow.EpiDeliveries.GetByEmployeeAsync(employeeId, ct);
-        return deliveries.Select(MapDelivery);
+        var deliveries = (await _uow.EpiDeliveries.GetByEmployeeAsync(employeeId, ct))
+            .OrderBy(d => d.DeliveryDate).ToList();
+
+        var result = new List<EpiDeliveryDto>();
+        for (int i = 0; i < deliveries.Count; i++)
+            result.Add(MapDelivery(deliveries[i], isFirst: i == 0));
+        return result;
     }
 
     public async Task<EpiDeliveryDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         var d = await _uow.EpiDeliveries.GetByIdAsync(id, ct);
-        return d is null ? null : MapDelivery(d);
+        if (d is null) return null;
+        var all = await _uow.EpiDeliveries.GetByEmployeeAsync(d.EmployeeId, ct);
+        bool isFirst = all.OrderBy(x => x.DeliveryDate).FirstOrDefault()?.Id == id;
+        return MapDelivery(d, isFirst);
     }
 
     public async Task<DashboardDto> GetDashboardAsync(CancellationToken ct = default)
@@ -88,39 +91,31 @@ public class EpiDeliveryService
             .OrderByDescending(d => d.DeliveryDate)
             .Take(10)
             .Select(d => new RecentDeliveryDto(
-                d.Id,
-                d.Employee?.Name ?? string.Empty,
-                d.Employee?.Sector?.Name ?? string.Empty,
-                d.DeliveryDate,
-                d.Items.Count
-            ));
+                d.Id, d.Employee?.Name ?? string.Empty,
+                d.Employee?.Sector?.Name ?? string.Empty, d.DeliveryDate, d.Items.Count));
 
-        return new DashboardDto(
-            todayDeliveries,
-            todayEmployees,
-            expiring.Count(),
-            activeEmployees,
-            recentDeliveries
-        );
+        return new DashboardDto(todayDeliveries, todayEmployees, expiring.Count(), activeEmployees, recentDeliveries);
     }
 
-    private static EpiDeliveryDto MapDelivery(EpiDelivery d) => new(
-        d.Id,
-        d.EmployeeId,
+    private async Task<EpiDeliveryDto> MapDeliveryAsync(EpiDelivery d, CancellationToken ct)
+    {
+        var all = await _uow.EpiDeliveries.GetByEmployeeAsync(d.EmployeeId, ct);
+        bool isFirst = all.OrderBy(x => x.DeliveryDate).FirstOrDefault()?.Id == d.Id;
+        return MapDelivery(d, isFirst);
+    }
+
+    private static EpiDeliveryDto MapDelivery(EpiDelivery d, bool isFirst = false) => new(
+        d.Id, d.EmployeeId,
         d.Employee?.Name ?? string.Empty,
         d.Employee?.Registration ?? string.Empty,
         d.Employee?.Sector?.Name ?? string.Empty,
-        d.OperatorId,
-        d.Operator?.Name ?? string.Empty,
-        d.DeliveryDate,
-        d.BiometricSignature != null,
-        d.Notes,
+        d.OperatorId, d.Operator?.Name ?? string.Empty,
+        d.DeliveryDate, d.BiometricSignature != null, d.Notes, isFirst,
         d.Items.Select(i => new EpiDeliveryItemDto(
             i.Id, i.EpiId,
             i.Epi?.Name ?? string.Empty,
             i.Epi?.Code ?? string.Empty,
-            i.Quantity,
-            i.NextReplacementDate
-        ))
+            i.Quantity, i.NextReplacementDate,
+            i.IsEarlyReplacement, i.EarlyReplacementReason))
     );
 }

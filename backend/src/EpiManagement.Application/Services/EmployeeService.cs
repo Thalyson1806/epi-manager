@@ -36,7 +36,7 @@ public class EmployeeService
         var sector = await _uow.Sectors.GetByIdAsync(dto.SectorId, ct)
             ?? throw new KeyNotFoundException("Setor não encontrado.");
 
-        var employee = new Employee(dto.Name, dto.Cpf, dto.Registration, dto.SectorId, dto.Position, dto.AdmissionDate);
+        var employee = new Employee(dto.Name, dto.Cpf, dto.Registration, dto.SectorId, dto.Position, dto.AdmissionDate, dto.WorkShift);
         await _uow.Employees.AddAsync(employee, ct);
         await _uow.SaveChangesAsync(ct);
         employee = (await _uow.Employees.GetByIdAsync(employee.Id, ct))!;
@@ -54,7 +54,7 @@ public class EmployeeService
         if (await _uow.Employees.ExistsRegistrationAsync(dto.Registration, id, ct))
             throw new InvalidOperationException("Matrícula já cadastrada.");
 
-        emp.Update(dto.Name, dto.Cpf, dto.Registration, dto.SectorId, dto.Position, dto.AdmissionDate);
+        emp.Update(dto.Name, dto.Cpf, dto.Registration, dto.SectorId, dto.Position, dto.AdmissionDate, dto.WorkShift);
         await _uow.Employees.UpdateAsync(emp, ct);
         await _uow.SaveChangesAsync(ct);
         emp = (await _uow.Employees.GetByIdAsync(id, ct))!;
@@ -120,7 +120,7 @@ public class EmployeeService
     private static EmployeeDto Map(Employee e) => new(
         e.Id, e.Name, e.Cpf, e.Registration,
         e.SectorId, e.Sector?.Name ?? string.Empty,
-        e.Position, e.AdmissionDate, e.Status,
+        e.Position, e.WorkShift, e.AdmissionDate, e.Status,
         e.BiometricTemplate != null, e.PhotoUrl, e.CreatedAt
     );
 }

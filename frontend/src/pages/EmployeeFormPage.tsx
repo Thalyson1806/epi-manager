@@ -19,7 +19,7 @@ export default function EmployeeFormPage() {
   const { control, handleSubmit, reset, formState: { errors } } = useForm<CreateEmployee>({
     defaultValues: {
       name: '', cpf: '', registration: '',
-      sectorId: '', position: '', admissionDate: '',
+      sectorId: '', position: '', workShift: '', admissionDate: '',
     },
   })
 
@@ -39,6 +39,7 @@ export default function EmployeeFormPage() {
         registration: employee.registration,
         sectorId: employee.sectorId,
         position: employee.position,
+        workShift: employee.workShift ?? '',
         admissionDate: employee.admissionDate.split('T')[0],
       })
     }
@@ -121,6 +122,21 @@ export default function EmployeeFormPage() {
                   rules={{ required: 'Cargo é obrigatório' }}
                   render={({ field }) => (
                     <TextField {...field} label="Cargo" fullWidth error={!!errors.position} helperText={errors.position?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Controller
+                  name="workShift"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} select label="Turno" fullWidth>
+                      <MenuItem value="">Não informado</MenuItem>
+                      <MenuItem value="1° Turno">1° Turno</MenuItem>
+                      <MenuItem value="2° Turno">2° Turno</MenuItem>
+                      <MenuItem value="3° Turno">3° Turno</MenuItem>
+                      <MenuItem value="Administrativo">Administrativo</MenuItem>
+                    </TextField>
                   )}
                 />
               </Grid>

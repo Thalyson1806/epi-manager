@@ -11,6 +11,7 @@ public record EpiDeliveryDto(
     DateTime DeliveryDate,
     bool HasBiometricSignature,
     string? Notes,
+    bool IsFirstDelivery,
     IEnumerable<EpiDeliveryItemDto> Items
 );
 
@@ -20,7 +21,9 @@ public record EpiDeliveryItemDto(
     string EpiName,
     string EpiCode,
     int Quantity,
-    DateTime NextReplacementDate
+    DateTime NextReplacementDate,
+    bool IsEarlyReplacement,
+    string? EarlyReplacementReason
 );
 
 public record CreateEpiDeliveryDto(
@@ -30,7 +33,12 @@ public record CreateEpiDeliveryDto(
     IEnumerable<CreateEpiDeliveryItemDto> Items
 );
 
-public record CreateEpiDeliveryItemDto(Guid EpiId, int Quantity);
+public record CreateEpiDeliveryItemDto(
+    Guid EpiId,
+    int Quantity,
+    bool IsEarlyReplacement = false,
+    string? EarlyReplacementReason = null
+);
 
 public record BiometricIdentifyDto(string BiometricSampleBase64);
 
@@ -42,4 +50,14 @@ public record BiometricIdentifyResultDto(
     string? SectorName,
     string? Position,
     string? PhotoUrl
+);
+
+public record SuggestedEpiDto(
+    Guid EpiId,
+    string EpiName,
+    string EpiCode,
+    bool IsRequired,
+    int ReplacementPeriodDays,
+    int MaxQuantityAllowed,
+    int ValidityDays
 );
