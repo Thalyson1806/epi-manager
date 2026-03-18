@@ -12,4 +12,5 @@ public interface IEpiDeliveryRepository
     Task<int> GetTodayEmployeesAttendedCountAsync(CancellationToken ct = default);
     Task<IEnumerable<EpiDeliveryItem>> GetExpiringItemsAsync(int daysAhead, CancellationToken ct = default);
     Task AddAsync(EpiDelivery delivery, CancellationToken ct = default);
+    Task<IEnumerable<EpiDeliveryItem>> GetOverdueAsync(CancellationToken ct = default);
 }

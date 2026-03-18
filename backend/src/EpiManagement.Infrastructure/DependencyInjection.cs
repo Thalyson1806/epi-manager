@@ -21,6 +21,7 @@ public static class DependencyInjection
         services.AddScoped<IEpiDeliveryRepository, EpiDeliveryRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+        services.AddScoped<ISystemConfigRepository, SystemConfigRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IBiometricService, DigitalPersonaService>();
 

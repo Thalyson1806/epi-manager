@@ -8,5 +8,6 @@ public interface IUnitOfWork
     IEpiDeliveryRepository EpiDeliveries { get; }
     IUserRepository Users { get; }
     IAuditLogRepository AuditLogs { get; }
+    ISystemConfigRepository SystemConfig { get; }
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

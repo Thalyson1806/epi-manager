@@ -30,132 +30,135 @@ public class PdfService
         if (endDate.HasValue)
             allDeliveries = allDeliveries.Where(d => d.DeliveryDate <= endDate.Value).ToList();
 
-        var firstDelivery = allDeliveries.FirstOrDefault(d => d.IsFirstDelivery);
-        var subsequentDeliveries = allDeliveries.Where(d => !d.IsFirstDelivery).ToList();
-
         var doc = Document.Create(container =>
         {
             container.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.MarginTop(1.2f, Unit.Centimetre);
-                page.MarginBottom(1f, Unit.Centimetre);
+                page.MarginTop(1.5f, Unit.Centimetre);
+                page.MarginBottom(1.5f, Unit.Centimetre);
                 page.MarginHorizontal(1.5f, Unit.Centimetre);
                 page.DefaultTextStyle(x => x.FontFamily("Arial").FontSize(9));
 
                 page.Content().Column(col =>
                 {
-                    // ── Cabeçalho ────────────────────────────────────────────
-                    col.Item().Border(1).BorderColor(Colors.Black).Table(t =>
-                    {
-                        t.ColumnsDefinition(c => { c.RelativeColumn(3); c.RelativeColumn(1); });
+                    // ── Título ────────────────────────────────────────────────
+                    col.Item().AlignCenter().Text("CONTROLE DE USO DE EQUIPAMENTOS")
+                        .Bold().FontSize(14);
+                    col.Item().AlignCenter().Text("PROTEÇÃO INDIVIDUAL (EPI15)")
+                        .Bold().FontSize(12);
+                    col.Item().PaddingTop(4).LineHorizontal(1).LineColor(Colors.Black);
+                    col.Item().PaddingTop(4);
 
-                        t.Cell().RowSpan(2).Padding(6).Column(inner =>
+                    // ── Bloco NR-6 + Declaração ───────────────────────────────
+                    col.Item().Border(1).BorderColor(Colors.Black).Column(block =>
+                    {
+                        // NR-6 text row
+                        block.Item().Padding(6).Row(row =>
                         {
-                            inner.Item().Text("CONTROLE DE USO DE EQUIPAMENTOS")
-                                .Bold().FontSize(12).AlignCenter();
-                            inner.Item().Text("PROTEÇÃO INDIVIDUAL (EPI15)")
-                                .Bold().FontSize(11).AlignCenter();
+                            row.RelativeItem(3).Text(t =>
+                            {
+                                t.Span("Conforme determinações da Norma Regulamentadora – NR-6, deve ser aberto uma ficha de controle de entrega dos ").Italic().FontSize(8);
+                                t.Span("Equipamentos de Proteção Individual – EPI's").Bold().Italic().FontSize(8);
+                                t.Span(", fornecidos aos empregados, e estes, a assinarem a cada vez que retirar um novo EPI ou efetuar uma troca.").Italic().FontSize(8);
+                            });
+                            row.ConstantItem(8);
+                            row.RelativeItem(1).AlignRight().AlignBottom()
+                                .Text("NORMA REGULAMENTADORA").Bold().Underline().FontSize(8);
                         });
 
-                        t.Cell().BorderLeft(1).BorderColor(Colors.Black).Padding(4).AlignRight()
-                            .Text("NORMA REGULAMENTADORA").Bold().Underline().FontSize(9);
-
-                        t.Cell().BorderLeft(1).BorderTop(1).BorderColor(Colors.Black).Padding(4).AlignRight()
-                            .Text("NR-6 — Equipamento de Proteção Individual").FontSize(8).Italic();
-                    });
-
-                    col.Item().PaddingTop(4);
-
-                    // ── Texto NR-6 ───────────────────────────────────────────
-                    col.Item().Border(1).BorderColor(Colors.Black).Padding(6).Text(t =>
-                    {
-                        t.Span("Conforme determinações da Norma Regulamentadora – NR-6, deve ser aberto uma ficha de controle de entrega dos ");
-                        t.Span("Equipamentos de Proteção Individual – EPI's").Bold();
-                        t.Span(", fornecidos aos empregados, e estes, a assinarem a cada vez que retirar um novo EPI ou efetuar uma troca.");
-                    });
-
-                    col.Item().PaddingTop(4);
-
-                    // ── Declaração de Recebimento ────────────────────────────
-                    col.Item().Border(1).BorderColor(Colors.Black).Padding(6).Column(inner =>
-                    {
-                        inner.Item().PaddingBottom(4)
+                        // Declaração title
+                        block.Item()
+                            .PaddingTop(2).PaddingBottom(4)
+                            .AlignCenter()
                             .Text("DECLARAÇÃO DE RECEBIMENTO")
-                            .Bold().FontSize(10).Underline().AlignCenter();
+                            .Bold().FontSize(10).Underline();
 
-                        inner.Item().Text(
-                            "Declaro ter recebido gratuitamente, após orientação de uso, realizada pela CIPA, os Equipamentos de Proteção Individual " +
-                            "abaixo descritos, os quais abrigo-me a usá-los em meu trabalho, sendo que os mesmos ficarão sob minha responsabilidade, " +
-                            "autorizando o desconto caso eu os perca ou os destrua.");
-
-                        inner.Item().PaddingTop(4).Text(
-                            "Também estou ciente que a não utilização dos mesmos em minhas atividades profissionais, é ato faltoso e passível de " +
-                            "punições legais e disciplinares, de acordo com a Consolidação das Leis do Trabalho (CLT) - Capítulo V – Seção I – Art. 158.");
-
-                        inner.Item().PaddingTop(10).Row(row =>
+                        // Paragraph 1
+                        block.Item().PaddingHorizontal(6).PaddingBottom(4).Text(t =>
                         {
-                            row.RelativeItem().Column(dateCol =>
-                            {
-                                if (firstDelivery != null)
-                                    dateCol.Item().Text(firstDelivery.DeliveryDate.ToLocalTime().ToString("dd/MM/yyyy"))
-                                        .FontSize(9).AlignCenter();
-                                else
-                                    dateCol.Item().Text("_____ / _____ / _______").FontSize(9).AlignCenter();
-                                dateCol.Item().BorderTop(1).BorderColor(Colors.Black)
-                                    .PaddingTop(2).Text("Data").FontSize(8).AlignCenter();
-                            });
+                            t.Span("Declaro ter recebido gratuitamente, após orientação de uso, realizada pela CIPA, os ").Italic().FontSize(8);
+                            t.Span("Equipamentos de Proteção Individual").Bold().Italic().FontSize(8);
+                            t.Span(" abaixo descritos, os quais abrigo-me a usá-los em meu trabalho, sendo que os mesmos ficarão sob minha responsabilidade, autorizando o desconto caso eu os perca ou os destrua.").Italic().FontSize(8);
+                        });
 
-                            row.ConstantItem(20);
+                        // Paragraph 2
+                        block.Item().PaddingHorizontal(6).PaddingBottom(10).Text(
+                            "Também estou ciente que a não utilização dos mesmos em minhas atividades profissionais, é ato faltoso e passível de punições legais e disciplinares, de acordo com a Consolidação das Leis do Trabalho (CLT) - Capítulo V – Seção I – Art. 158.")
+                            .Italic().FontSize(8);
 
-                            row.RelativeItem(3).Column(sigCol =>
+                        // Date + Signature
+                        var firstDelivery = allDeliveries.FirstOrDefault(d => d.IsFirstDelivery);
+                        block.Item().PaddingHorizontal(6).PaddingBottom(8).Row(row =>
+                        {
+                            // Date
+                            if (firstDelivery != null)
+                                row.ConstantItem(90).Text(firstDelivery.DeliveryDate.ToLocalTime().ToString("dd/MM/yyyy")).FontSize(9);
+                            else
+                                row.ConstantItem(90).Text("____/______/________").FontSize(9);
+
+                            row.RelativeItem();
+
+                            // Signature
+                            if (firstDelivery is { HasBiometricSignature: true })
                             {
-                                if (firstDelivery is { HasBiometricSignature: true })
+                                row.ConstantItem(220).Column(sig =>
                                 {
-                                    sigCol.Item().Border(1).BorderColor(Colors.Grey.Darken2)
-                                        .Background(Colors.Grey.Lighten4).Padding(6).Column(seal =>
-                                        {
-                                            seal.Item().Text("✓  ASSINADO ELETRONICAMENTE VIA BIOMETRIA DIGITAL")
-                                                .Bold().FontSize(7.5f).AlignCenter();
-                                            seal.Item().PaddingTop(2)
-                                                .Text(emp.Name.ToUpper()).Bold().FontSize(8).AlignCenter();
-                                            seal.Item().Text($"R.E.: {emp.Registration}")
-                                                .FontSize(7.5f).AlignCenter();
-                                            seal.Item().Text(firstDelivery.DeliveryDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))
-                                                .FontSize(7).AlignCenter().FontColor(Colors.Grey.Darken1);
-                                        });
-                                }
-                                else
+                                    sig.Item().Text(emp.Name.ToUpper()).Bold().FontSize(8);
+                                    sig.Item().Text($"R.E.: {emp.Registration}").FontSize(7.5f);
+                                    sig.Item().Text("Assinado via biometria digital")
+                                        .Italic().FontSize(7).FontColor("#C0603A");
+                                    sig.Item().Text(firstDelivery.DeliveryDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))
+                                        .FontSize(7).FontColor("#C0603A");
+                                    sig.Item().PaddingTop(2).BorderBottom(1).BorderColor(Colors.Black);
+                                    sig.Item().PaddingTop(2).AlignCenter().Text("Assinatura do Empregado").FontSize(8);
+                                });
+                            }
+                            else
+                            {
+                                row.ConstantItem(220).Column(sig =>
                                 {
-                                    sigCol.Item().Height(40).BorderBottom(1).BorderColor(Colors.Black);
-                                    sigCol.Item().PaddingTop(2).Text("Assinatura do Empregado").FontSize(8).AlignCenter();
-                                }
-                            });
+                                    sig.Item().Height(22);
+                                    sig.Item().BorderBottom(1).BorderColor(Colors.Black);
+                                    sig.Item().PaddingTop(2).AlignCenter()
+                                        .Text("Assinatura do Empregado").FontSize(8);
+                                });
+                            }
+
+                            row.RelativeItem();
                         });
                     });
 
-                    col.Item().PaddingTop(4);
+                    col.Item().PaddingTop(8);
 
                     // ── Dados do funcionário ──────────────────────────────────
-                    col.Item().Border(1).BorderColor(Colors.Black).Padding(5).Row(row =>
+                    col.Item().Row(row =>
                     {
-                        row.RelativeItem(3).Text(t =>
+                        row.AutoItem().Text(t =>
                         {
-                            t.Span("NOME: ").Bold();
-                            t.Span(emp.Name.ToUpper());
+                            t.Span("NOME: ").Bold().FontSize(9);
+                            t.Span(emp.Name.ToUpper()).Bold().FontSize(9);
                         });
-                        row.RelativeItem(2).Text(t =>
+                        row.ConstantItem(14);
+                        row.AutoItem().Text(t =>
                         {
-                            t.Span("FUNÇÃO: ").Bold();
-                            t.Span(emp.Position.ToUpper());
+                            t.Span("FUNÇÃO: ").Bold().FontSize(9);
+                            t.Span(emp.Position.ToUpper()).Bold().FontSize(9);
                         });
-                        row.RelativeItem().Text(t =>
+                        if (!string.IsNullOrEmpty(emp.WorkShift))
                         {
-                            t.Span("MF REGISTRO: ").Bold();
-                            t.Span(emp.Registration);
+                            row.ConstantItem(10);
+                            row.AutoItem().Text(emp.WorkShift.ToUpper()).Bold().FontSize(9);
+                        }
+                        row.RelativeItem();
+                        row.AutoItem().Text(t =>
+                        {
+                            t.Span("MF  REGISTRO: ").Bold().FontSize(9);
+                            t.Span(emp.Registration).Bold().FontSize(9);
                         });
                     });
 
+                    col.Item().PaddingTop(3).LineHorizontal(1).LineColor(Colors.Black);
                     col.Item().PaddingTop(4);
 
                     // ── Tabela de EPIs ────────────────────────────────────────
@@ -163,79 +166,74 @@ public class PdfService
                     {
                         t.ColumnsDefinition(c =>
                         {
-                            c.RelativeColumn(4); // Descrição
-                            c.RelativeColumn(1); // Quant.
-                            c.RelativeColumn(1); // Troca SIM
-                            c.RelativeColumn(1); // Troca NÃO
-                            c.RelativeColumn(2); // Data
-                            c.RelativeColumn(1); // CA
-                            c.RelativeColumn(2); // Assinatura
+                            c.RelativeColumn(5);    // Descrição
+                            c.RelativeColumn(1.5f); // Quant.
+                            c.RelativeColumn(1.2f); // SIM
+                            c.RelativeColumn(1.2f); // NÃO
+                            c.RelativeColumn(2.2f); // Data
+                            c.RelativeColumn(2f);   // CA
+                            c.RelativeColumn(3.5f); // Assinatura
                         });
 
-                        static IContainer HeaderCell(IContainer c) =>
-                            c.Background(Colors.Grey.Lighten3).Border(1).BorderColor(Colors.Black)
+                        IContainer HeaderCell(IContainer c) =>
+                            c.Border(1).BorderColor(Colors.Black)
                              .Padding(3).AlignCenter().AlignMiddle();
 
-                        static IContainer DataCell(IContainer c) =>
+                        IContainer DataCell(IContainer c) =>
                             c.Border(1).BorderColor(Colors.Black).Padding(3).AlignMiddle();
 
                         t.Header(h =>
                         {
-                            h.Cell().RowSpan(2).Element(HeaderCell).Text("DESCRIÇÃO").Bold();
-                            h.Cell().RowSpan(2).Element(HeaderCell).Text("QUANT.").Bold();
-                            h.Cell().ColumnSpan(2).Element(HeaderCell).Text("TROCA").Bold();
-                            h.Cell().RowSpan(2).Element(HeaderCell).Text("DATA").Bold();
-                            h.Cell().RowSpan(2).Element(HeaderCell).Text("CA").Bold();
-                            h.Cell().RowSpan(2).Element(HeaderCell).Text("ASSINATURA").Bold();
-                            h.Cell().Element(HeaderCell).Text("SIM").Bold();
-                            h.Cell().Element(HeaderCell).Text("NÃO").Bold();
+                            h.Cell().RowSpan(2).Element(HeaderCell).Text("DESCRIÇÃO").Bold().FontSize(8);
+                            h.Cell().RowSpan(2).Element(HeaderCell).Text("QUANT.").Bold().FontSize(8);
+                            h.Cell().ColumnSpan(2).Element(HeaderCell).Text("TROCA").Bold().FontSize(8);
+                            h.Cell().RowSpan(2).Element(HeaderCell).Text("DATA").Bold().FontSize(8);
+                            h.Cell().RowSpan(2).Element(HeaderCell).Text("CA").Bold().FontSize(8);
+                            h.Cell().RowSpan(2).Element(HeaderCell).Text("ASSINATURA").Bold().FontSize(8);
+                            h.Cell().Element(HeaderCell).Text("SIM").Bold().FontSize(8);
+                            h.Cell().Element(HeaderCell).Text("NÃO").Bold().FontSize(8);
                         });
 
-                        // Primeira entrega — assinatura já está no termo
-                        if (firstDelivery != null)
-                        {
-                            foreach (var item in firstDelivery.Items)
-                            {
-                                t.Cell().Element(DataCell).Text(item.EpiName);
-                                t.Cell().Element(DataCell).AlignCenter().Text(item.Quantity.ToString());
-                                t.Cell().Element(DataCell).AlignCenter().Text(""); // Troca SIM
-                                t.Cell().Element(DataCell).AlignCenter().Text("X"); // Troca NÃO (recebimento novo)
-                                t.Cell().Element(DataCell).AlignCenter()
-                                    .Text(firstDelivery.DeliveryDate.ToLocalTime().ToString("dd/MM/yyyy"));
-                                t.Cell().Element(DataCell).AlignCenter().Text("—");
-                                t.Cell().Element(DataCell).AlignCenter()
-                                    .Text(firstDelivery.HasBiometricSignature ? $"✓ Bio\n{emp.Registration}" : "").FontSize(7);
-                            }
-                        }
-
-                        // Trocas subsequentes
-                        foreach (var delivery in subsequentDeliveries)
+                        int rowCount = 0;
+                        foreach (var delivery in allDeliveries)
                         {
                             foreach (var item in delivery.Items)
                             {
-                                var desc = item.EpiName;
-                                if (item.IsEarlyReplacement)
-                                    desc += "\n★ Troca antecipada";
+                                rowCount++;
+                                bool isReplacement = !delivery.IsFirstDelivery || item.IsEarlyReplacement;
 
-                                t.Cell().Element(DataCell).Text(desc).FontSize(8);
-                                t.Cell().Element(DataCell).AlignCenter().Text(item.Quantity.ToString());
-                                t.Cell().Element(DataCell).AlignCenter().Text("X"); // Troca SIM
-                                t.Cell().Element(DataCell).AlignCenter().Text("");
+                                t.Cell().Element(DataCell).Text(item.EpiName).FontSize(8);
+                                t.Cell().Element(DataCell).AlignCenter().Text(item.Quantity.ToString()).FontSize(8);
+                                t.Cell().Element(DataCell).AlignCenter().Text(isReplacement ? "X" : "").FontSize(9);
+                                t.Cell().Element(DataCell).AlignCenter().Text("").FontSize(8);
                                 t.Cell().Element(DataCell).AlignCenter()
-                                    .Text(delivery.DeliveryDate.ToLocalTime().ToString("dd/MM/yyyy"));
-                                t.Cell().Element(DataCell).AlignCenter().Text("—");
-                                t.Cell().Element(DataCell).AlignCenter()
-                                    .Text(delivery.HasBiometricSignature ? $"✓ Bio\n{emp.Registration}" : "").FontSize(7);
+                                    .Text(delivery.DeliveryDate.ToLocalTime().ToString("dd/MM/yyyy")).FontSize(8);
+                                t.Cell().Element(DataCell).AlignCenter().Text(item.EpiCode).FontSize(8);
+
+                                if (delivery.HasBiometricSignature)
+                                {
+                                    t.Cell().Element(DataCell).Column(sig =>
+                                    {
+                                        sig.Item().Text(emp.Name.ToUpper()).Bold().FontSize(7);
+                                        sig.Item().Text($"R.E.: {emp.Registration}").FontSize(7);
+                                        sig.Item().Text("Assinado via biometria digital")
+                                            .Italic().FontSize(6.5f).FontColor("#C0603A");
+                                        sig.Item().Text(delivery.DeliveryDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))
+                                            .FontSize(6.5f).FontColor("#C0603A");
+                                    });
+                                }
+                                else
+                                {
+                                    t.Cell().Element(DataCell).MinHeight(18).Text("").FontSize(8);
+                                }
                             }
                         }
 
-                        // Linhas em branco
-                        int used = (firstDelivery?.Items.Count() ?? 0)
-                            + subsequentDeliveries.Sum(d => d.Items.Count());
-                        int blanks = Math.Max(5, 12 - used);
+                        // Blank rows
+                        int blanks = Math.Max(8, 15 - rowCount);
                         for (int i = 0; i < blanks; i++)
                             for (int c = 0; c < 7; c++)
-                                t.Cell().Element(DataCell).Text(" ").FontSize(10);
+                                t.Cell().Element(DataCell).MinHeight(18).Text("").FontSize(8);
                     });
 
                     // ── Observações: trocas antecipadas ──────────────────────
@@ -262,10 +260,10 @@ public class PdfService
 
                 page.Footer().AlignRight().Text(t =>
                 {
-                    t.Span("Página ").FontSize(8);
-                    t.CurrentPageNumber().FontSize(8);
-                    t.Span(" de ").FontSize(8);
-                    t.TotalPages().FontSize(8);
+                    t.Span("Página ").FontSize(7);
+                    t.CurrentPageNumber().FontSize(7);
+                    t.Span(" de ").FontSize(7);
+                    t.TotalPages().FontSize(7);
                 });
             });
         });

@@ -14,7 +14,8 @@ public class UnitOfWork : IUnitOfWork
         IEpiRepository epis,
         IEpiDeliveryRepository epiDeliveries,
         IUserRepository users,
-        IAuditLogRepository auditLogs)
+        IAuditLogRepository auditLogs,
+        ISystemConfigRepository systemConfig)
     {
         _ctx = ctx;
         Employees = employees;
@@ -23,6 +24,7 @@ public class UnitOfWork : IUnitOfWork
         EpiDeliveries = epiDeliveries;
         Users = users;
         AuditLogs = auditLogs;
+        SystemConfig = systemConfig;
     }
 
     public IEmployeeRepository Employees { get; }
@@ -31,6 +33,7 @@ public class UnitOfWork : IUnitOfWork
     public IEpiDeliveryRepository EpiDeliveries { get; }
     public IUserRepository Users { get; }
     public IAuditLogRepository AuditLogs { get; }
+    public ISystemConfigRepository SystemConfig { get; }
 
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)
         => await _ctx.SaveChangesAsync(ct);

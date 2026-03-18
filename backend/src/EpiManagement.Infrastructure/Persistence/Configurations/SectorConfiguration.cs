@@ -14,5 +14,7 @@ public class SectorConfiguration : IEntityTypeConfiguration<Sector>
         builder.Property(s => s.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
         builder.Property(s => s.Description).HasColumnName("description").HasMaxLength(500);
         builder.Property(s => s.CreatedAt).HasColumnName("created_at").IsRequired();
+        builder.Property(s => s.SupervisorName).HasColumnName("supervisor_name").HasMaxLength(200);
+        builder.Property(s => s.SupervisorEmail).HasColumnName("supervisor_email").HasMaxLength(200);
     }
 }

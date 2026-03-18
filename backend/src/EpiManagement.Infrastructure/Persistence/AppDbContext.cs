@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<EpiDeliveryItem> EpiDeliveryItems => Set<EpiDeliveryItem>();
     public DbSet<User> Users => Set<User>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<SystemConfig> SystemConfigs => Set<SystemConfig>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

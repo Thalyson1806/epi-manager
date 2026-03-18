@@ -13,31 +13,31 @@ public class SectorService
     public async Task<IEnumerable<SectorDto>> GetAllAsync(CancellationToken ct = default)
     {
         var sectors = await _uow.Sectors.GetAllAsync(ct);
-        return sectors.Select(s => new SectorDto(s.Id, s.Name, s.Description, s.Employees.Count));
+        return sectors.Select(s => new SectorDto(s.Id, s.Name, s.Description, s.Employees.Count, s.SupervisorName, s.SupervisorEmail));
     }
 
     public async Task<SectorDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         var s = await _uow.Sectors.GetByIdAsync(id, ct);
-        return s is null ? null : new SectorDto(s.Id, s.Name, s.Description, s.Employees.Count);
+        return s is null ? null : new SectorDto(s.Id, s.Name, s.Description, s.Employees.Count, s.SupervisorName, s.SupervisorEmail);
     }
 
     public async Task<SectorDto> CreateAsync(CreateSectorDto dto, CancellationToken ct = default)
     {
-        var sector = new Sector(dto.Name, dto.Description);
+        var sector = new Sector(dto.Name, dto.Description, dto.SupervisorName, dto.SupervisorEmail);
         await _uow.Sectors.AddAsync(sector, ct);
         await _uow.SaveChangesAsync(ct);
-        return new SectorDto(sector.Id, sector.Name, sector.Description, 0);
+        return new SectorDto(sector.Id, sector.Name, sector.Description, 0, sector.SupervisorName, sector.SupervisorEmail);
     }
 
     public async Task<SectorDto> UpdateAsync(Guid id, UpdateSectorDto dto, CancellationToken ct = default)
     {
         var s = await _uow.Sectors.GetByIdAsync(id, ct)
             ?? throw new KeyNotFoundException("Setor não encontrado.");
-        s.Update(dto.Name, dto.Description);
+        s.Update(dto.Name, dto.Description, dto.SupervisorName, dto.SupervisorEmail);
         await _uow.Sectors.UpdateAsync(s, ct);
         await _uow.SaveChangesAsync(ct);
-        return new SectorDto(s.Id, s.Name, s.Description, s.Employees.Count);
+        return new SectorDto(s.Id, s.Name, s.Description, s.Employees.Count, s.SupervisorName, s.SupervisorEmail);
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)

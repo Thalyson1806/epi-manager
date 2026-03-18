@@ -14,7 +14,7 @@ import { useForm, Controller } from 'react-hook-form'
 import { sectorsApi, type Sector, type SectorEpi } from '../api/sectors'
 import { episApi } from '../api/epis'
 
-type SectorForm = { name: string; description: string }
+type SectorForm = { name: string; description: string; supervisorName: string; supervisorEmail: string }
 type EpiForm = { epiId: string; isRequired: boolean; replacementPeriodDays: number; maxQuantityAllowed: number }
 
 export default function SectorsPage() {
@@ -35,7 +35,7 @@ export default function SectorsPage() {
     enabled: !!expanded,
   })
 
-  const sectorForm = useForm<SectorForm>({ defaultValues: { name: '', description: '' } })
+  const sectorForm = useForm<SectorForm>({ defaultValues: { name: '', description: '', supervisorName: '', supervisorEmail: '' } })
   const saveSectorMutation = useMutation({
     mutationFn: (data: SectorForm) =>
       editingSector ? sectorsApi.update(editingSector.id, data) : sectorsApi.create(data),
@@ -63,7 +63,12 @@ export default function SectorsPage() {
 
   const openSectorDialog = (sector?: Sector) => {
     setEditingSector(sector ?? null)
-    sectorForm.reset({ name: sector?.name ?? '', description: sector?.description ?? '' })
+    sectorForm.reset({
+      name: sector?.name ?? '',
+      description: sector?.description ?? '',
+      supervisorName: sector?.supervisorName ?? '',
+      supervisorEmail: sector?.supervisorEmail ?? '',
+    })
     setSectorOpen(true)
   }
   const closeSectorDialog = () => { setSectorOpen(false); setEditingSector(null) }
@@ -191,6 +196,14 @@ export default function SectorsPage() {
               <Grid item xs={12}>
                 <Controller name="description" control={sectorForm.control}
                   render={({ field }) => <TextField {...field} label="Descrição" fullWidth multiline rows={2} />} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Controller name="supervisorName" control={sectorForm.control}
+                  render={({ field }) => <TextField {...field} label="Nome do supervisor" fullWidth />} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Controller name="supervisorEmail" control={sectorForm.control}
+                  render={({ field }) => <TextField {...field} label="E-mail do supervisor" fullWidth type="email" />} />
               </Grid>
             </Grid>
           </DialogContent>

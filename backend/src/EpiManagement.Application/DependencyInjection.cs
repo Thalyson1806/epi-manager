@@ -13,6 +13,9 @@ public static class DependencyInjection
         services.AddScoped<EpiDeliveryService>();
         services.AddScoped<AuthService>();
         services.AddScoped<PdfService>();
+        services.AddScoped<EmailService>();
+        services.AddScoped<AlertService>();
+        services.AddHostedService<EpiAlertJob>();
         return services;
     }
 }

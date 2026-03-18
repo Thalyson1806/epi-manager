@@ -67,4 +67,18 @@ public class EpiDeliveryRepository : IEpiDeliveryRepository
 
     public async Task AddAsync(EpiDelivery delivery, CancellationToken ct = default)
         => await _ctx.EpiDeliveries.AddAsync(delivery, ct);
+
+    public async Task<IEnumerable<EpiDeliveryItem>> GetOverdueAsync(CancellationToken ct = default)
+        => await _ctx.EpiDeliveryItems
+            .Include(i => i.Epi)
+            .Include(i => i.EpiDelivery).ThenInclude(d => d.Employee).ThenInclude(e => e.Sector)
+            .Where(i => i.NextReplacementDate < DateTime.UtcNow)
+            .Where(i => !_ctx.EpiDeliveryItems
+                .Any(newer =>
+                    newer.EpiId == i.EpiId &&
+                    newer.EpiDelivery.EmployeeId == i.EpiDelivery.EmployeeId &&
+                    newer.EpiDelivery.DeliveryDate > i.EpiDelivery.DeliveryDate))
+            .OrderBy(i => i.EpiDelivery.Employee.Name)
+            .ThenBy(i => i.NextReplacementDate)
+            .ToListAsync(ct);
 }
