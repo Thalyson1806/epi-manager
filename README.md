@@ -19,6 +19,16 @@ Sistema corporativo completo para controle de entrega e assinatura eletrônica d
 
 ---
 
+## Screenshots
+
+![Dashboard](docs/screenshots/dashboard-epi.png)
+![Funcionários](docs/screenshots/Funcionarios.png)
+![Entrega de EPI](docs/screenshots/entrega-de-epi.png)
+![Setores](docs/screenshots/setores.png)
+![Ficha EPI15](docs/screenshots/ficha-epi.png)
+
+---
+
 ## Stack
 
 | Camada | Tecnologia |
