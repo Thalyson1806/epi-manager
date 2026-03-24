@@ -21,10 +21,37 @@ Sistema corporativo completo para controle de entrega e assinatura eletrônica d
 
 ## Screenshots
 
+### Dashboard
+Visão geral com indicadores do dia: total de entregas realizadas, funcionários atendidos e EPIs com vencimento próximo. Permite monitorar a operação em tempo real.
+
 ![Dashboard](docs/screenshots/dashboard-epi.png)
+
+---
+
+### Funcionários
+Cadastro completo com foto, turno, setor, função e status. Cada funcionário tem histórico de entregas vinculado e biometria cadastrada para identificação no almoxarifado.
+
 ![Funcionários](docs/screenshots/Funcionarios.png)
+
+---
+
+### Entrega de EPI
+Fluxo guiado em 4 etapas: identificação biométrica do funcionário, seleção dos EPIs (com sugestão automática pelo setor), assinatura biométrica e confirmação. Suporta troca antecipada com justificativa por item.
+
 ![Entrega de EPI](docs/screenshots/entrega-de-epi.png)
+
+---
+
+### Setores
+Gerenciamento de setores com EPIs obrigatórios vinculados, período de troca, quantidade máxima e encarregado responsável para recebimento de alertas por e-mail.
+
 ![Setores](docs/screenshots/setores.png)
+
+---
+
+### Ficha EPI15 (PDF)
+Ficha gerada automaticamente no padrão NR-6 com termo de declaração de recebimento, assinatura biométrica impressa por linha da tabela e histórico completo de entregas do funcionário.
+
 ![Ficha EPI15](docs/screenshots/ficha-epi.png)
 
 ---
